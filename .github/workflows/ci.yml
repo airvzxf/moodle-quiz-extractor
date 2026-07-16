@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: validate (Node ${{ matrix.node }}, pnpm ${{ matrix.pnpm }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['20.19']
+        pnpm: ['10.34.5']
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ matrix.pnpm }}
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prepare WXT types
+        run: pnpm prepare
+
+      - name: Type-check (strict + noUncheckedIndexedAccess)
+        run: pnpm compile
+
+      - name: Unit + integration tests
+        run: pnpm test
+
+      - name: Build Firefox MV3
+        run: pnpm build:firefox
+
+      - name: web-ext lint over the MV3 manifest
+        run: pnpm lint:ext
+
+      - name: Verify fixture redaction is leak-free
+        run: pnpm redact
+
+      - name: Upload extension artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: firefox-mv3-${{ github.sha }}
+          path: |
+            .output/firefox-mv3/
+            .output/*.zip
+          retention-days: 7

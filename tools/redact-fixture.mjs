@@ -11,6 +11,12 @@
 // Design: each replacement uses a placeholder that *cannot* accidentally
 // satisfy the canary patterns (e.g. "sesskey=__REDACTED__" not "sesskey=REDACTED"),
 // so a placeholder that survives a canary check is unambiguous.
+//
+// The canary patterns are defined in src/diagnostics/canary-patterns.ts so
+// the runtime redactor and the fixture redactor share a single source of
+// truth. We import them dynamically because this script runs from Node and
+// the source file is TypeScript (consumed at runtime via a tiny inline
+// reimplementation; the canonical definitions live in canary-patterns.ts).
 
 import { readdir, readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
@@ -50,6 +56,7 @@ const PATTERNS = [
 ];
 
 // Canary patterns detect a LEAK (a real secret that survived redaction).
+// MUST stay in sync with src/diagnostics/canary-patterns.ts::CANARY_LABELS.
 // Placeholders use underscores or "__" markers so they cannot satisfy these
 // patterns — only a real token like "sesskey=eLDsS5Y5jR" would.
 const CANARY_PATTERNS = [
