@@ -12,6 +12,7 @@ import { runZipPipeline } from '~/background/zip-orchestrator';
 import { createAssetFetcher } from '~/background/asset-fetch-client';
 import { createDownloadService } from '~/background/download-service';
 import {
+  originPatternFor,
   probeAssetPermission,
   requestAssetPermission,
 } from '~/permissions/asset-permissions';
@@ -38,7 +39,10 @@ export default defineBackground(() => {
         });
         return false;
       }
-      void runForDocument(parsed.data).then(sendResponse).catch((err: Error) => {
+      const tabUrl = typeof (raw as { tabUrl?: unknown }).tabUrl === 'string'
+        ? (raw as { tabUrl: string }).tabUrl
+        : undefined;
+      void runForDocument(parsed.data, tabUrl).then(sendResponse).catch((err: Error) => {
         sendResponse({ kind: 'zipResult', ok: false, error: err.message });
       });
       return true;
@@ -46,21 +50,48 @@ export default defineBackground(() => {
   );
 });
 
-async function runForDocument(doc: QuizDocument): Promise<ZipResult> {
-  const probe = await probeAssetPermission(
-    `https://${doc.source.originHash.slice(0, 8)}.invalid/`,
-    { permissions: browser.permissions as { contains?: (p: { origins?: string[] }) => Promise<boolean> } },
-  );
-  // We can't reconstruct the live URL from the origin hash alone; the popup
-  // is responsible for capturing the current page URL and passing it in via
-  // a richer message. For Phase 2 we keep the simple contract and ask the
-  // user to grant the wildcard fallback (only after a user click on the
-  // popup). When the user pre-authorized `<all_urls>` in the install
-  // dialog, this is a no-op.
-  if (!probe.alreadyGranted) {
-    const granted = await requestAssetPermission('<all_urls>', {
-      permissions: browser.permissions as { request?: (p: { origins: string[] }) => Promise<boolean> },
-    });
+/**
+ * Run the ZIP pipeline for a single document. The optional `tabUrl` is the
+ * live URL of the tab that originated the request (captured by the content
+ * script). When present and well-formed, we ask for a permission scoped to
+ * that page's origin only. When absent (older content scripts, or test
+ * callers), we keep the legacy fallback: ask for `<all_urls>` once the user
+ * clicks "Descargar ZIP", and log a warning so the user can diagnose.
+ */
+export async function runForDocument(
+  doc: QuizDocument,
+  tabUrl?: string,
+): Promise<ZipResult> {
+  const originPattern = tabUrl ? originPatternFor(tabUrl) : '';
+  const permissionsApi = {
+    permissions: browser.permissions as unknown as {
+      contains?: (p: { origins?: string[] }) => Promise<boolean>;
+      request?: (p: { origins: string[] }) => Promise<boolean>;
+    },
+  };
+
+  if (originPattern) {
+    const probe = await probeAssetPermission(tabUrl!, permissionsApi);
+    if (!probe.alreadyGranted) {
+      const granted = await requestAssetPermission(tabUrl!, permissionsApi);
+      if (!granted.granted) {
+        return {
+          kind: 'zipResult',
+          ok: false,
+          error: 'Permission denied for pluginfile.php origin',
+        };
+      }
+    }
+  } else {
+    // Legacy fallback: no live URL was forwarded. Keep the previous
+    // behavior (ask for `<all_urls>` once the user clicks "Descargar ZIP")
+    // so older callers still work, but warn the user via the result
+    // warnings list.
+    // eslint-disable-next-line no-console
+    console.warn(
+      '[moodle-quiz-extractor] zipQuiz arrived without tabUrl; falling back to <all_urls>',
+    );
+    const granted = await requestAssetPermission('<all_urls>', permissionsApi);
     if (!granted.granted) {
       return {
         kind: 'zipResult',
@@ -69,8 +100,9 @@ async function runForDocument(doc: QuizDocument): Promise<ZipResult> {
       };
     }
   }
-  const originPattern = '*://*/*';
-  const fetcher = createAssetFetcher(originPattern, fetch.bind(globalThis));
+
+  const fetcherOriginPattern = originPattern || '*://*/*';
+  const fetcher = createAssetFetcher(fetcherOriginPattern, fetch.bind(globalThis));
   const downloader = createDownloadService(browser as unknown as Parameters<typeof createDownloadService>[0]);
   const out = await runZipPipeline({
     doc,

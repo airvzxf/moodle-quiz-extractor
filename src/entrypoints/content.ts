@@ -56,7 +56,11 @@ export default defineContentScript({
             return false;
           }
           browser.runtime
-            .sendMessage({ kind: 'zipQuiz', document: parsedDoc.data })
+            .sendMessage({
+              kind: 'zipQuiz',
+              document: parsedDoc.data,
+              tabUrl: window.location.href,
+            })
             .then((res) => sendResponse(res))
             .catch((err: Error) => {
               const result: ZipResult = {
