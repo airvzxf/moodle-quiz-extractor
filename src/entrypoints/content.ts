@@ -27,7 +27,6 @@ import { buildApplyPlan } from '~/autofill/apply-plan';
 import { installNoSubmitSpy } from '~/moodle/applicators/no-submit-spy';
 import { installFetchSpy } from '~/moodle/applicators/fetch-spy';
 import { applyStep } from '~/moodle/applicators/control-applicator';
-import { QuizDocumentSchema } from '~/domain/quiz-schema';
 import {
   ApplyAutofillRequestSchema,
   type ApplyAutofillResult,
@@ -38,9 +37,7 @@ import {
   type PrepareAutofillRequest,
   type PrepareAutofillResult,
   QuizExtractRequestSchema,
-  ZipRequestSchema,
   type QuizDocumentMessage,
-  type ZipResult,
 } from '~/messaging/runtime-messages';
 import { redactString } from '~/diagnostics/redactor';
 
@@ -63,6 +60,11 @@ export default defineContentScript({
 
     browser.runtime.onMessage.addListener(
       (raw: unknown, _sender, sendResponse: (response: unknown) => void) => {
+        // Note: `zipQuiz` is NOT handled here. The popup sends it directly
+        // to the background (with `tabUrl` captured from the active tab).
+        // If this content script also re-forwarded it, the background
+        // would run the ZIP pipeline twice and the user would get two
+        // downloads.
         const req = QuizExtractRequestSchema.safeParse(raw);
         if (req.success) {
           void handleExtract()
@@ -74,35 +76,6 @@ export default defineContentScript({
                 error: err.message,
               }),
             );
-          return true;
-        }
-        const zipReq = ZipRequestSchema.safeParse(raw);
-        if (zipReq.success) {
-          const parsedDoc = QuizDocumentSchema.safeParse(zipReq.data.document);
-          if (!parsedDoc.success) {
-            const result: ZipResult = {
-              kind: 'zipResult',
-              ok: false,
-              error: 'invalid QuizDocument payload',
-            };
-            sendResponse(result);
-            return false;
-          }
-          browser.runtime
-            .sendMessage({
-              kind: 'zipQuiz',
-              document: parsedDoc.data,
-              tabUrl: window.location.href,
-            })
-            .then((res) => sendResponse(res))
-            .catch((err: Error) => {
-              const result: ZipResult = {
-                kind: 'zipResult',
-                ok: false,
-                error: err.message,
-              };
-              sendResponse(result);
-            });
           return true;
         }
         const prep = PrepareAutofillRequestSchema.safeParse(raw);

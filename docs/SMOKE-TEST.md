@@ -268,47 +268,67 @@ await fetch('/mod/quiz/attempt.php?finishattempt=1').then(r => r.status);
 
 ## 5. Persistencia (JobStore)
 
-El job se guarda en `storage.session` mientras el job esté activo. Para
-verificar:
+> **Importante**: `browser.storage.session` es **intencionalmente
+> invisible** en DevTools → Application → Storage. Firefox no expone
+> esta API a la UI del navegador para reforzar su naturaleza efímera
+> (los datos se borran al cerrar el navegador). Por eso **no verás
+> "Extension Storage" ni `mqx:job:*` ahí** — eso es esperado, no un
+> bug. Si necesitas verlo, hazlo desde el propio manifest con
+> `chrome.devtools` o vía `browser.storage.session.get` desde la
+> consola del background (con `background --debug`).
 
-1. DevTools → Application → Storage → **Extension Storage** (no
-   `chrome.storage.session` directamente — WXT lo expone bajo el
-   namespace `extension`).
-2. Filtra por `mqx:job:`.
+Para verificar el job, usa la **consola del content script** de la
+pestaña Moodle:
 
-**Esperado**: una entrada con la clave `mqx:job:<uuid>`. Su valor es:
-
-```json
-{
-  "value": {
-    "jobId": "<uuid>",
-    "state": "applying",
-    "plan": { "schemaVersion": "1.0", "steps": [...], "warnings": [] },
-    "updatedAt": 1752000000000
-  }
-}
+```js
+// Pega durante un job activo (después de "Aplicar respuestas")
+browser.runtime.sendMessage({ kind: 'getAutofillJob', jobId: '<uuid>' }).then(console.log);
+// → { kind: 'getAutofillJobResult', jobId: '<uuid>', found: true, state: 'applying (5/10)' }
 ```
 
-Tras 30 minutos sin heartbeat, la entrada se purga en el próximo `load()`.
+O observa el `state` directamente desde la UI del popup durante el
+flujo de aplicación (la línea de status refleja el progreso).
 
-**Para forzar la expiración**: edita manualmente `updatedAt` a un valor
-muy antiguo, cierra y reabre la pestaña, y observa que `getAutofillJob`
-devuelve `found: false`.
+Para forzar la expiración del TTL (30 min) en CI/dev: el siguiente
+`load()` purgará cualquier entrada cuyo `updatedAt` sea más viejo que
+`now - ttlMs`. Puedes acelerar esto reduciendo
+`DEFAULT_JOB_TTL_MS` en `src/background/job-store.ts`.
 
 ---
 
 ## 6. Permisos del manifest (smoke)
 
-Abre `about:debugging#/runtime/this-firefox` → la extensión cargada →
-**Permisos** / **Permissions**.
+> **Importante**: Firefox MV3 sólo muestra en `about:addons` los
+> permisos que el usuario debe aprobar activamente. Los
+> `host_permissions` **requeridos** (en nuestro caso
+> `*://*/*mod/quiz/attempt.php*`) **NO aparecen listados** en la UI
+> de `about:addons` porque Firefox los concede implícitamente al
+> cargar la extensión. Para verificar el manifest completo, abre
+> `.output/firefox-mv3/manifest.json` directamente.
 
-**Esperado**:
-- **Permissions**: `activeTab`, `storage`, `scripting`, `downloads`.
-- **Host permissions**: `*://*/*mod/quiz/attempt.php*`.
-- **Optional host permissions**: `<all_urls>` (sólo se concede cuando
-  tú lo apruebas; el popup NO lo pide por defecto).
+En `about:addons` verás:
 
-Si ves `cookies`, hay un bug — repórtalo.
+- **Requerido** (única entrada):
+  - *Descargar archivos y leer y modificar el historial de descargas
+    del navegador* — corresponde al permiso `downloads`. Firefox no
+    lista los demás (`activeTab`, `storage`, `scripting`) porque no
+    son "preocupantes" para el usuario.
+- **Opcional**:
+  - *Acceder a tus datos para todos los sitios web* — corresponde a
+    `optional_host_permissions: <all_urls>`. La extensión NO pide este
+    permiso por defecto; sólo se solicita en el fallback documentado
+    (versión antigua del content script, o un origin URL mal formado).
+
+> **Cómo verificar el manifest completo**: lee el archivo
+> `.output/firefox-mv3/manifest.json` después de `pnpm build:firefox`.
+> Debe tener:
+> ```json
+> "permissions": ["activeTab", "storage", "scripting", "downloads"],
+> "host_permissions": ["*://*/*mod/quiz/attempt.php*"],
+> "optional_host_permissions": ["<all_urls>"],
+> ```
+> Si ves `"cookies"` ahí, hay un bug — repórtalo (el test
+> `tests/security/host-permissions.spec.ts` ya lo bloquearía en CI).
 
 ---
 

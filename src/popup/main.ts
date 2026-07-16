@@ -27,7 +27,7 @@ interface RuntimeApi {
   tabs?: {
     query: (
       q: { active: boolean; currentWindow: boolean },
-    ) => Promise<Array<{ id?: number }>>;
+    ) => Promise<Array<{ id?: number; url?: string }>>;
     sendMessage: (tabId: number, message: unknown) => Promise<unknown>;
   };
   runtime?: {
@@ -50,10 +50,16 @@ function setStatus(text: string, st: 'idle' | 'busy' | 'ok' | 'error'): void {
   status.dataset.state = st;
 }
 
-async function getActiveTab(): Promise<number | null> {
+interface ActiveTabInfo {
+  readonly id: number;
+  readonly url: string | undefined;
+}
+
+async function getActiveTab(): Promise<ActiveTabInfo | null> {
   const tabs = await api.tabs?.query({ active: true, currentWindow: true });
-  const id = tabs?.[0]?.id;
-  return typeof id === 'number' ? id : null;
+  const tab = tabs?.[0];
+  if (!tab || typeof tab.id !== 'number') return null;
+  return { id: tab.id, url: typeof tab.url === 'string' ? tab.url : undefined };
 }
 
 async function askContentForDocument(tabId: number): Promise<QuizDocument | null> {
@@ -113,12 +119,12 @@ function wireExtract(): void {
 
   btnExtract.addEventListener('click', async () => {
     setStatus('Extrayendo…', 'busy');
-    const tabId = await getActiveTab();
-    if (tabId === null) {
+    const tab = await getActiveTab();
+    if (tab === null) {
       setStatus('No hay pestaña activa.', 'error');
       return;
     }
-    const doc = await askContentForDocument(tabId);
+    const doc = await askContentForDocument(tab.id);
     if (!doc) return;
     state.lastDocument = doc;
     setStatus(`Detectado: ${doc.title} — ${doc.questions.length} pregunta(s).`, 'ok');
@@ -130,12 +136,17 @@ function wireExtract(): void {
     setStatus('Descargando ZIP…', 'busy');
     btnZip.disabled = true;
     try {
+      // The popup captures the active tab URL itself and forwards it to
+      // the background so the AssetFetcher can request a permission
+      // scoped to the real Moodle origin (e.g.
+      // `https://moodle.example.edu/*`). Without this, the background
+      // falls back to `<all_urls>` (PR #15 fix).
+      const tab = await getActiveTab();
+      const tabUrl = tab?.url;
       const result = (await api.runtime?.sendMessage({
         kind: 'zipQuiz',
         document: state.lastDocument,
-        tabUrl: (await api.tabs?.query({ active: true, currentWindow: true }))?.[0]?.id !== undefined
-          ? undefined // background will read tabUrl from sender; popup-side forwarding is wired in PR #21 step 2
-          : undefined,
+        tabUrl,
       })) as ZipResult | undefined;
       if (!result || result.kind !== 'zipResult') {
         throw new Error('respuesta inválida del background');
@@ -165,9 +176,8 @@ function wireAutofill(): void {
   if (!input || !btnValidate || !btnApply || !btnCancel) return;
 
   const tabId = async (): Promise<number | null> => {
-    const tabs = await api.tabs?.query({ active: true, currentWindow: true });
-    const id = tabs?.[0]?.id;
-    return typeof id === 'number' ? id : null;
+    const tab = await getActiveTab();
+    return tab?.id ?? null;
   };
 
   btnValidate.addEventListener('click', async () => {
