@@ -1,0 +1,47 @@
+# Moodle fixtures (raw, with real sesskey / MoodleSession / attempt / cmid)
+# NEVER commit. Already excluded via .git/info/exclude; this is a defensive
+# mirror that also works on fresh clones of the redaction tool and CI.
+resources/
+
+# Build artifacts
+.output/
+.wxt/
+dist/
+build/
+
+# Node / pnpm
+node_modules/
+.pnpm-store/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Env / secrets (defensive)
+.env
+.env.local
+.env.*.local
+
+# Test artifacts
+coverage/
+.nyc_output/
+*.lcov
+.vitest-cache/
+
+# Redaction scratch (never commit the unsanitized source)
+tests/fixtures/redacted/.scratch/
+
+# Generated debug bundles (contain redacted quiz text — opt-in only)
+debug-bundles/

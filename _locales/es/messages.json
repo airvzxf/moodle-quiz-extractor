@@ -1,0 +1,78 @@
+{
+  "extensionName": {
+    "message": "Moodle Quiz Extractor",
+    "description": "Nombre visible de la extensión en el navegador."
+  },
+  "extensionDescription": {
+    "message": "Exporta cuestionarios de Moodle a Markdown local con imágenes y autollenado seguro.",
+    "description": "Descripción corta de la extensión."
+  },
+  "popupTabExtract": {
+    "message": "Extraer",
+    "description": "Pestaña del popup para extraer cuestionarios."
+  },
+  "popupTabAutofill": {
+    "message": "Autocompletar",
+    "description": "Pestaña del popup para autocompletar respuestas."
+  },
+  "popupTabDiagnostics": {
+    "message": "Diagnóstico",
+    "description": "Pestaña del popup para diagnóstico y depuración."
+  },
+  "popupTabSettings": {
+    "message": "Configuración",
+    "description": "Pestaña del popup para configuración."
+  },
+  "actionExtractCurrent": {
+    "message": "Extraer página actual",
+    "description": "Botón para extraer sólo la página visible del cuestionario."
+  },
+  "actionExtractAll": {
+    "message": "Extraer cuestionario completo",
+    "description": "Botón para extraer todas las páginas del cuestionario."
+  },
+  "actionDownloadZip": {
+    "message": "Descargar ZIP",
+    "description": "Botón para descargar el ZIP autocontenido."
+  },
+  "actionCopyMarkdown": {
+    "message": "Copiar Markdown al portapapeles",
+    "description": "Botón para copiar el Markdown generado."
+  },
+  "errorNotAQuiz": {
+    "message": "Esta página no parece un intento de cuestionario Moodle.",
+    "description": "Mensaje de error cuando la página detectada no es un intento válido."
+  },
+  "errorExpiredSession": {
+    "message": "La sesión de Moodle ha caducado. Inicia sesión e inténtalo de nuevo.",
+    "description": "Mensaje de error cuando la sesión ha expirado."
+  },
+  "errorFinishedAttempt": {
+    "message": "Este intento ya fue finalizado. No se puede extraer.",
+    "description": "Mensaje de error cuando el intento ya está cerrado."
+  },
+  "errorUnsupportedLayout": {
+    "message": "Diseño de Moodle no reconocido. Genera un diagnóstico y repórtalo.",
+    "description": "Mensaje de error cuando el layout no es compatible."
+  },
+  "errorPrivLeak": {
+    "message": "Se detectó un secreto residual en el diagnóstico. El reporte ha sido bloqueado.",
+    "description": "Mensaje del redactor cuando MQX-PRIV-401 dispara."
+  },
+  "warningAssetOffline": {
+    "message": "El ZIP no es completamente offline — uno o más assets no pudieron descargarse.",
+    "description": "Advertencia cuando un asset falla y se conserva el enlace remoto."
+  },
+  "confirmFillHeadline": {
+    "message": "Vista previa del autollenado",
+    "description": "Título del modal de previsualización del autollenado."
+  },
+  "confirmFillSubmit": {
+    "message": "Aplicar respuestas",
+    "description": "Botón para confirmar y aplicar las respuestas."
+  },
+  "confirmFillCancel": {
+    "message": "Cancelar",
+    "description": "Botón para cancelar el autollenado."
+  }
+}
