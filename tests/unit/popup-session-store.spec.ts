@@ -146,16 +146,33 @@ describe('PopupSessionStore — redactor (defense in depth)', () => {
     ).rejects.toThrow();
   });
 
-  it('redacts canary patterns in lastDocumentJson', async () => {
+  it('does NOT redact lastDocumentJson (it contains legitimate SHA-256 hex)', async () => {
+    // The QuizDocument's stableFingerprint is a 64-char hex string that
+    // would always match the `long-hex-blob` canary. The document is our
+    // own structured output (built by `buildQuizDocument` and validated
+    // by `QuizDocumentSchema`), so we deliberately do not redact it.
     const store = new PopupSessionStore(null);
-    await expect(
-      store.save(
-        101,
-        // MoodleSession=foo matches the canary regex
-        // `/MoodleSession[\w-]*=[A-Za-z0-9]+(?![_])/`.
-        makeState({ lastDocumentJson: 'MoodleSession=leaked123abc' }),
-      ),
-    ).rejects.toThrow();
+    const state = makeState({
+      lastDocumentJson: JSON.stringify({
+        schemaVersion: '1.0',
+        questions: [
+          {
+            number: 1,
+            stableFingerprint: 'a'.repeat(64),
+            kind: 'single_choice',
+            promptMarkdown: 'x',
+            choices: [],
+            metadata: {},
+            assets: [],
+            supportedForAutofill: true,
+            warnings: [],
+          },
+        ],
+      }),
+    });
+    // Should NOT throw — the long-hex canary is intentionally skipped
+    // for the structured document.
+    await expect(store.save(101, state)).resolves.toBeTruthy();
   });
 
   it('redacts canary patterns in lastJobId', async () => {
