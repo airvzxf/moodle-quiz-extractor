@@ -4,8 +4,7 @@
 // accident. We install spies on:
 //   - HTMLFormElement.prototype.submit()
 //   - HTMLFormElement.prototype.requestSubmit()
-//   - fetch(...., 'processattempt.php')  (only installed when the page has
-//     the responseform, so the spy doesn't leak across navigations)
+//   - fetch(...., 'processattempt.php')  (separate module: fetch-spy.ts)
 //
 // The spy is opt-in: tests call installNoSubmitSpy() to engage, and
 // uninstall() to release. The content script does NOT install the spy by
@@ -21,9 +20,6 @@ export interface NoSubmitSpy {
   /** Temporarily disables (re-entrant: uses a refcount). */
   disable: () => void;
 }
-
-const SUBMIT_METHODS: Array<keyof HTMLFormElement> = ['submit', 'requestSubmit'];
-const PROCESSATTEMPT_PATTERN = /\/mod\/quiz\/attempt\.php\?.*(?:finishattempt|processattempt)/i;
 
 export function installNoSubmitSpy(
   document: Document,
@@ -59,17 +55,18 @@ export function installNoSubmitSpy(
     } as HTMLFormElement['requestSubmit'];
   }
 
-  // Also wrap fetch in a thin wrapper the content script installs when the
-  // user is about to apply autofill. The spy itself does NOT wrap fetch
-  // because that would affect too much; the apply-plan flow installs a
-  // separate, narrowly-scoped fetch wrapper before any user input.
-  void SUBMIT_METHODS;
-  void PROCESSATTEMPT_PATTERN;
-
   return {
     blocked: () => blocks,
     uninstall: () => {
       hardDisabled = true;
+      if (isForm && form) {
+        // Restore the original no-op methods. We can't recover the real
+        // HTMLFormElement.prototype.submit, so we install harmless stubs;
+        // by the time the spy is uninstalled the user is explicitly
+        // submitting, and a no-op call is safer than another patch.
+        form.submit = function () {} as HTMLFormElement['submit'];
+        form.requestSubmit = function () {} as HTMLFormElement['requestSubmit'];
+      }
     },
     enable: () => {
       hardDisabled = false;
