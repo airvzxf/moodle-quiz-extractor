@@ -24,6 +24,24 @@ async function parseFixture(path: string) {
   );
 }
 
+async function parseSnippet(html: string) {
+  const { window } = new JSDOM(html, {
+    url: 'https://ejemplo.mx/mod/quiz/attempt.php?attempt=__REDACTED__&cmid=__REDACTED__',
+  });
+  const dom = createDomAdapter(window.document);
+  const questions = dom.listQuestions();
+  const warns: string[] = [];
+  const parsed = await Promise.all(
+    questions.map((q) =>
+      parseQuestion(q, {
+        fingerprint,
+        warn: (code, msg) => warns.push(`${code}:${msg}`),
+      }),
+    ),
+  );
+  return { parsed, warns };
+}
+
 describe('parser registry (4 redacted fixtures)', () => {
   it('dsop-01: 10 single_choice, 4 options each, letters a-d', async () => {
     const qs = await parseFixture('tests/fixtures/redacted/dsop-01-page-01.html');
