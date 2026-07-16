@@ -16,7 +16,7 @@ Selecciona una o mas opción:
 [ ] d. Capacidad en GB, velocidad en GHz, GB en disco duro, DVD y puerto RJ45.
 
 Metadata
-Tipo de respuesta: Checkbox.
+Tipo de respuesta: multiple_choice.
 Puntaje de 10.00
 Sin responder aún
 
@@ -32,7 +32,7 @@ Selecciona una opción:
 [ ] d. 1B, 2A, 3C, 4D.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10.00
 Sin responder aún
 
@@ -47,7 +47,7 @@ Selecciona una opción:
 [ ] d. Administración del software y los diversos dispositivos periféricos.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10.00
 Sin responder aún
 
@@ -62,7 +62,7 @@ Selecciona una opción:
 [ ] d. 1. Instalar el SO. 2. Instalar los controladores. 3. Instalar antivirus. 4. Instalar programas de aplicaciones. 5. Actualizar el SO 6. Instalar los controladores del hardware.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10.00
 Sin responder aún
 
@@ -77,7 +77,7 @@ Selecciona una opción:
 [ ] d. Primera.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10.00
 Sin responder aún
 
@@ -92,7 +92,7 @@ Selecciona una opción:
 [ ] d. Hardware de computadora.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10.00
 Sin responder aún
 
@@ -107,7 +107,7 @@ Selecciona una opción:
 [ ] d. Quinta.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10.00
 Sin responder aún
 
@@ -122,7 +122,7 @@ Selecciona una opción:
 [ ] d. 1, 4, 3.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10.00
 Sin responder aún
 
@@ -137,7 +137,7 @@ Selecciona una opción:
 [ ] d. Funciones de configuración.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10.00
 Sin responder aún
 
@@ -152,7 +152,7 @@ Selecciona una opción:
 [ ] d. 1. Colocar el CD/DVD del SO. 2. Llenar datos solicitados. 3. Distribución del teclado. 4. Nombre del equipo. 5. Nombre de usuario del sistema y su contraseña. 6. Activar o no las actualizaciones. 7. Reiniciar. 8. Utilizar el SO.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10.00
 Sin responder aún
 

@@ -45,7 +45,7 @@ Selecciona una opción:
 [ ] Es azul.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10.00
 Sin responder aún
 Otra metadata.
@@ -62,13 +62,15 @@ Selecciona una o mas opción:
 [ ] 1000/100.
 
 Metadata
-Tipo de respuesta: Checkbox.
+Tipo de respuesta: multiple_choice.
 Puntaje de 10.00
 Sin responder aún
 Otra metadata.
 ```
 
 > **No** se usa `- [ ]` (checklist GFM), **no** se añade frontmatter YAML, **no** se antepone `a. b. c.` a las opciones: el contrato es **literal** al ejemplo.
+>
+> El valor de `Tipo de respuesta:` es el identificador canónico del `Question.kind` (`single_choice`, `multiple_choice`, `short_text`, `long_text`, `select`, `unsupported`) — coincide 1-a-1 con el campo `kind` del `QuizDocument` JSON y del `manifest.json`, sin localización.
 
 ---
 
@@ -112,7 +114,7 @@ Selecciona una opción:
 [ ] d. La ejecución de diferentes sitios web al mismo tiempo.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10.00
 Sin responder aún
 

@@ -16,7 +16,7 @@ Selecciona una opción:
 [ ] d. Controlar cambios que se generen durante el proyecto.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10
 Sin responder aún
 
@@ -31,7 +31,7 @@ Selecciona una opción:
 [ ] d. Objeto.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10
 Sin responder aún
 
@@ -46,7 +46,7 @@ Selecciona una opción:
 [ ] d. Comportamiento.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10
 Sin responder aún
 
@@ -61,7 +61,7 @@ Selecciona una opción:
 [ ] d. Programación orientada a la lógica.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10
 Sin responder aún
 
@@ -76,7 +76,7 @@ Selecciona una opción:
 [ ] d. Observación.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10
 Sin responder aún
 
@@ -91,7 +91,7 @@ Selecciona una opción:
 [ ] d. Individual.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10
 Sin responder aún
 
@@ -106,7 +106,7 @@ Selecciona una opción:
 [ ] d. Eventos.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10
 Sin responder aún
 
@@ -121,7 +121,7 @@ Selecciona una opción:
 [ ] d. UML.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10
 Sin responder aún
 
@@ -136,7 +136,7 @@ Selecciona una opción:
 [ ] d. OOSE.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10
 Sin responder aún
 
@@ -151,7 +151,7 @@ Selecciona una opción:
 [ ] d. OMT.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10
 Sin responder aún
 

@@ -90,6 +90,6 @@ describe('end-to-end pipeline: dsop-02 (has 1 multiple_choice)', () => {
   it('emits `Selecciona una o mas opción:` for the multiple_choice question', async () => {
     const { md } = await runPipeline('tests/fixtures/redacted/dsop-02-page-01.html');
     expect(md).toContain('Selecciona una o mas opción:');
-    expect(md).toContain('Tipo de respuesta: Checkbox.');
+    expect(md).toContain('Tipo de respuesta: multiple_choice.');
   });
 });
