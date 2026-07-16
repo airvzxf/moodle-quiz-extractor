@@ -1,8 +1,11 @@
 import { defineConfig } from 'wxt';
 
 // https://wxt.dev/api/config.html
+// WXT 0.20.27's `srcDir` doubles as the root of the `~/*` alias (it cannot
+// be overridden in `alias`). Setting `srcDir: './src'` makes `~` point at
+// `src/`, where we keep both the library code and the WXT entrypoints.
 export default defineConfig({
-  srcDir: '.',
+  srcDir: './src',
   outDir: '.output',
   manifest: () => ({
     name: 'Moodle Quiz Extractor',
