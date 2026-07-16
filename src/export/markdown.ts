@@ -149,9 +149,11 @@ function renderAnswers(q: Question): string {
 
 function renderMetadata(q: Question): string {
   // Match the user's example shape. The exact text is fixed (no translation);
-  // only the kind label, puntaje, and state vary.
-  const kindLabel = kindToSpanish(q.kind);
-  const lines: string[] = ['Metadata', `Tipo de respuesta: ${kindLabel}.`];
+  // the kind label is the raw `Question.kind` value from the Zod schema
+  // (one of `single_choice`, `multiple_choice`, `short_text`, `long_text`,
+  // `select`, `unsupported`) so the metadata line matches the extraction's
+  // canonical identifier. The puntaje and state vary per question.
+  const lines: string[] = ['Metadata', `Tipo de respuesta: ${q.kind}.`];
   if (q.metadata.gradeRaw) {
     lines.push(q.metadata.gradeRaw);
   } else {

@@ -16,7 +16,7 @@ Selecciona una opción:
 [ ] d. La ejecución de diferentes sitios web al mismo tiempo.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10.00
 Sin responder aún
 
@@ -31,7 +31,7 @@ Selecciona una opción:
 [ ] d. El sistema operativo interactúa con el usuario y el programa con la interface.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10.00
 Sin responder aún
 
@@ -46,7 +46,7 @@ Selecciona una opción:
 [ ] d. Gabinete, cd-rom, fuente de poder.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10.00
 Sin responder aún
 
@@ -61,7 +61,7 @@ Selecciona una opción:
 [ ] d. El número asignado al lanzamiento de un sistema operativo con kernel y funciones nuevas.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10.00
 Sin responder aún
 
@@ -76,7 +76,7 @@ Selecciona una opción:
 [ ] d. Distribución, moderador, invitado.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10.00
 Sin responder aún
 
@@ -91,7 +91,7 @@ Selecciona una opción:
 [ ] d. Administración de tareas, de usuarios, organización interna y accesos de servicio.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10.00
 Sin responder aún
 
@@ -106,7 +106,7 @@ Selecciona una opción:
 [ ] d. La versión es el número o nombre de un lanzamiento y la distribución se refiere a las diferentes funciones que hay entre éstas.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10.00
 Sin responder aún
 
@@ -121,7 +121,7 @@ Selecciona una opción:
 [ ] d. Conjunto de sentencias finitas que ayudan al usuario a interactuar con el hardware de la computadora.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10.00
 Sin responder aún
 
@@ -136,7 +136,7 @@ Selecciona una opción:
 [ ] d. Por características del equipo de cómputo en una fecha determinada.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10.00
 Sin responder aún
 
@@ -151,7 +151,7 @@ Selecciona una opción:
 [ ] d. A tener las últimas noticias y lanzamientos de productos para mi sistema operativo.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10.00
 Sin responder aún
 

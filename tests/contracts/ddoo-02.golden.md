@@ -16,7 +16,7 @@ Selecciona una opción:
 [ ] d. Se puede relacionar con el mundo real.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10
 Sin responder aún
 
@@ -31,7 +31,7 @@ Selecciona una opción:
 [ ] d. Documentación implementada.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10
 Sin responder aún
 
@@ -46,7 +46,7 @@ Selecciona una opción:
 [ ] d. secuencias; sistemas.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10
 Sin responder aún
 
@@ -61,7 +61,7 @@ Selecciona una opción:
 [ ] d. limitada; escalable.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10
 Sin responder aún
 
@@ -76,7 +76,7 @@ Selecciona una opción:
 [ ] d. Herencia.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10
 Sin responder aún
 
@@ -91,7 +91,7 @@ Selecciona una opción:
 [ ] d. Heredadas.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10
 Sin responder aún
 
@@ -106,7 +106,7 @@ Selecciona una opción:
 [ ] d. modularidad.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10
 Sin responder aún
 
@@ -120,7 +120,7 @@ Selecciona una opción:
 [ ] c. Cascada.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10
 Sin responder aún
 
@@ -135,7 +135,7 @@ Selecciona una opción:
 [ ] d. diagramas.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10
 Sin responder aún
 
@@ -150,7 +150,7 @@ Selecciona una opción:
 [ ] d. Funciones.
 
 Metadata
-Tipo de respuesta: Radio buttons.
+Tipo de respuesta: single_choice.
 Puntaje de 10
 Sin responder aún
 
