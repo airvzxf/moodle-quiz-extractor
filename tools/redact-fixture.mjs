@@ -72,12 +72,31 @@ const CANARY_PATTERNS = [
 await mkdir(DST, { recursive: true });
 let count = 0;
 let blocked = 0;
-for (const f of (await readdir(SRC)).filter((n) => n.endsWith('.html'))) {
-  const inPath = join(SRC, f);
+let sources;
+let readDir;
+try {
+  sources = (await readdir(SRC)).filter((n) => n.endsWith('.html'));
+  readDir = SRC;
+} catch (err) {
+  if (err && err.code === 'ENOENT') {
+    console.log(
+      `Note: ${SRC} is not present (gitignored; raw fixtures are developer-local).`,
+    );
+    console.log('Verifying the already-committed redacted fixtures instead…');
+    sources = (await readdir(DST)).filter((n) => n.endsWith('.html'));
+    readDir = DST;
+  } else {
+    throw err;
+  }
+}
+for (const f of sources) {
+  const inPath = join(readDir, f);
   const outPath = join(DST, f);
   const original = await readFile(inPath, 'utf8');
   let out = original;
-  for (const [re, repl] of PATTERNS) out = out.replace(re, repl);
+  if (readDir === SRC) {
+    for (const [re, repl] of PATTERNS) out = out.replace(re, repl);
+  }
   // Canary: if any forbidden pattern survived, refuse to write
   const surviving = CANARY_PATTERNS.filter(([re]) => re.test(out));
   if (surviving.length > 0) {
@@ -94,4 +113,4 @@ if (blocked > 0) {
   console.error(`\n${blocked} fixture(s) blocked — would have leaked secrets.`);
   process.exit(1);
 }
-console.log(`\nDone: ${count} fixture(s) redacted, 0 blocked.`);
+console.log(`\nDone: ${count} fixture(s) verified, 0 blocked.`);
