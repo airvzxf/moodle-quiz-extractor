@@ -9,6 +9,9 @@ import type { Question } from '~/domain/quiz-schema';
 import type { MoodleQuestion } from '../dom-adapter';
 import { parseRadio } from './radio';
 import { parseCheckbox } from './checkbox';
+import { parseShortText } from './short-text';
+import { parseLongText } from './long-text';
+import { parseSelect } from './select';
 import { parseUnsupported } from './unsupported';
 import { MQX } from '~/diagnostics/codes';
 
@@ -31,20 +34,23 @@ export async function parseQuestion(
     return parseRadio(q, ctx);
   }
   if (q.textareas().length > 0) {
-    // Implement in a later PR. For now, treat as unsupported.
-    return parseUnsupported(q, {
-      reason: 'long_text not yet implemented in MVP Phase 1',
-      code: MQX.PARSE_NOT_IMPLEMENTED,
-    });
+    return parseLongText(q, ctx);
   }
   if (q.textInputs().length > 0) {
-    return parseUnsupported(q, {
-      reason: 'short_text not yet implemented in MVP Phase 1',
-      code: MQX.PARSE_NOT_IMPLEMENTED,
-    });
+    return parseShortText(q, ctx);
+  }
+  if (hasSelect(q)) {
+    return parseSelect(q, ctx);
   }
   return parseUnsupported(q, {
     reason: 'no recognized control in question',
     code: MQX.PARSE_UNKNOWN,
   });
+}
+
+function hasSelect(q: MoodleQuestion): boolean {
+  const answer = q.element.querySelector('.answer');
+  const root: ParentNode = answer ?? q.element;
+  const sel = root.querySelector('select');
+  return sel instanceof HTMLSelectElement && !sel.disabled;
 }
