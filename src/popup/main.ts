@@ -194,6 +194,7 @@ function wireAutofill(): void {
     const jobId = generateJobId();
     setStatus('Validando respuestas…', 'busy');
     btnValidate.disabled = true;
+    btnCancel.disabled = true;
     try {
       const res = (await sendToContent<PrepareAutofillResult>(tid, {
         kind: 'prepareAutofill',
@@ -207,12 +208,17 @@ function wireAutofill(): void {
         setStatus(`Errores: ${(res.errors ?? []).join('; ')}`, 'error');
         state.lastJobId = null;
         btnApply.disabled = true;
+        btnCancel.disabled = true;
         return;
       }
       state.lastJobId = jobId;
       const warnMsg = (res.warnings ?? []).length > 0 ? ` (${res.warnings!.length} aviso(s))` : '';
-      setStatus(`OK: ${res.stepCount ?? 0} pasos listos${warnMsg}. Pulsa "Aplicar respuestas".`, 'ok');
+      setStatus(`OK: ${res.stepCount ?? 0} pasos listos${warnMsg}. Pulsa "Aplicar respuestas" o "Cancelar".`, 'ok');
       btnApply.disabled = false;
+      // Enable Cancel after a successful validation so the user can
+      // back out before touching the DOM. The job sits in the content
+      // script's in-memory map until either apply or abort clears it.
+      btnCancel.disabled = false;
     } catch (err) {
       setStatus(`Error: ${(err as Error).message}`, 'error');
     } finally {
@@ -226,7 +232,7 @@ function wireAutofill(): void {
     if (tid === null) return;
     setStatus('Aplicando…', 'busy');
     btnApply.disabled = true;
-    btnCancel.disabled = false;
+    // Cancel stays enabled during apply so the user can abort mid-loop.
     try {
       const res = (await sendToContent<ApplyAutofillResult>(tid, {
         kind: 'applyAutofill',
@@ -251,15 +257,27 @@ function wireAutofill(): void {
     }
   });
 
+  /**
+   * Cancel button. Two cases:
+   *  (a) before apply — the user has validated but changed their mind.
+   *      We abort the in-memory job, clear the textarea, and return to
+   *      idle. The QuizDocument detection (lastDocument) and the ZIP
+   *      download button stay enabled — re-detection is unrelated.
+   *  (b) during apply — abortAutofill is already in flight via the
+   *      content script's per-step loop. Calling it again is a no-op
+   *      (handleAbort is idempotent).
+   */
   btnCancel.addEventListener('click', async () => {
-    if (!state.lastJobId) return;
     const tid = await tabId();
     if (tid === null) return;
-    await sendToContent(tid, { kind: 'abortAutofill', jobId: state.lastJobId });
-    state.lastJobId = null;
+    if (state.lastJobId) {
+      await sendToContent(tid, { kind: 'abortAutofill', jobId: state.lastJobId });
+      state.lastJobId = null;
+    }
+    input.value = '';
     btnApply.disabled = true;
     btnCancel.disabled = true;
-    setStatus('Cancelado.', 'idle');
+    setStatus('Cancelado. Pega otra lista o pulsa "Extraer página actual" para reiniciar.', 'idle');
   });
 }
 

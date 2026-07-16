@@ -139,15 +139,31 @@ fetch('/mod/quiz/attempt.php?finishattempt=1');
 **Esperado**: pasa a la red (puede que devuelva un 200 con HTML de la
 misma página, pero **no lanza**).
 
-### 2.4 Cancelar un job a medias
+### 2.4 Cancelar un job (después de validar, antes de aplicar)
+
+1. Valida una lista de respuestas (sección 2.1). El status muestra
+   `OK: N pasos listos. Pulsa "Aplicar respuestas" o "Cancelar".`
+2. **El botón Cancelar ya debe estar habilitado** (verde claro).
+3. Pulsa **Cancelar** sin haber aplicado.
+
+**Esperado**:
+- Status: `Cancelado. Pega otra lista o pulsa "Extraer página actual" para reiniciar.`
+- El textarea se vacía.
+- Los botones **Aplicar respuestas** y **Cancelar** se deshabilitan.
+- **El botón Descargar ZIP sigue habilitado** (la detección del
+  cuestionario es independiente del autofill y se conserva).
+- En la consola del content script no hay errores.
+
+### 2.4.bis Cancelar un job mid-apply
 
 1. Aplica un job (sección 2.2).
 2. Antes de enviar manualmente, abre el popup y pulsa **Cancelar**.
 
 **Esperado**:
-- Status: `Cancelado.`
-- Los radios / checkboxes marcados permanecen marcados (cancelar
-  no "deshace" — eso es responsabilidad del usuario).
+- Status: `Cancelado. ...` (igual que 2.4).
+- Los radios / checkboxes marcados **hasta el momento del cancel**
+  permanecen marcados (cancelar no "deshace" — eso es responsabilidad
+  del usuario).
 - Los spies se desinstalaron (intenta de nuevo `form.submit()`:
   ya NO lanza `MQX-FILL-304`; el form vuelve a su comportamiento
   nativo).
