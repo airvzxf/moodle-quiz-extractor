@@ -19,12 +19,19 @@ export interface DownloadApi {
       ) => void;
     };
   };
-  blobs?: {
-    createObjectURL?: (blob: Blob) => string;
-  };
-  urls?: {
-    revokeObjectURL?: (url: string) => void;
-  };
+  /**
+   * Factory used to create the `blob:` URL handed to
+   * `browser.downloads.download`. Firefox MV3 service workers do not
+   * expose `browser.blobs`, but the global `URL.createObjectURL` static
+   * is available (Firefox 121+). Tests inject a stub here so the
+   * download service does not depend on a real Blob/URL pair.
+   */
+  createBlobUrl?: (blob: Blob) => string;
+  /**
+   * Revocation hook. Same rationale as `createBlobUrl`: real callers
+   * use `URL.revokeObjectURL`, tests use a stub.
+   */
+  revokeBlobUrl?: (url: string) => void;
 }
 
 export interface DownloadResult {
@@ -40,8 +47,32 @@ export interface DownloadService {
   ) => Promise<DownloadResult>;
 }
 
+/** Default factory: the global static `URL.createObjectURL`. Available in
+ *  window, dedicated worker, and Firefox MV3 service-worker scopes since
+ *  Firefox 121. We require it explicitly so a missing implementation
+ *  surfaces as a clear error instead of a silent fallback to a
+ *  `data:` URL (which Firefox MV3 rejects in `downloads.download`). */
+const defaultCreateBlobUrl = (blob: Blob): string => {
+  if (typeof URL.createObjectURL !== 'function') {
+    throw new Error(
+      'URL.createObjectURL is not available in this context; cannot produce a blob: URL for browser.downloads.download',
+    );
+  }
+  return URL.createObjectURL(blob);
+};
+
+const defaultRevokeBlobUrl = (url: string): void => {
+  if (typeof URL.revokeObjectURL === 'function') {
+    URL.revokeObjectURL(url);
+  }
+};
+
 /** Construct a download service backed by `api` (defaults to `browser`). */
-export function createDownloadService(api: DownloadApi = browser): DownloadService {
+export function createDownloadService(
+  api: DownloadApi = browser,
+): DownloadService {
+  const createBlobUrl = api.createBlobUrl ?? defaultCreateBlobUrl;
+  const revokeBlobUrl = api.revokeBlobUrl ?? defaultRevokeBlobUrl;
   return {
     async downloadZip(bytes, filename) {
       if (!api.downloads?.download) {
@@ -53,11 +84,17 @@ export function createDownloadService(api: DownloadApi = browser): DownloadServi
       const blob = new Blob([bytes as unknown as ArrayBuffer], {
         type: 'application/zip',
       });
-      const blobUrl =
-        api.blobs?.createObjectURL?.(blob) ??
-        // Fallback for service workers without `URL.createObjectURL`:
-        // serialize the bytes to base64 data URL. Slower, but always works.
-        bytesToDataUrl(bytes, 'application/zip');
+      const blobUrl = createBlobUrl(blob);
+      if (!blobUrl.startsWith('blob:')) {
+        // Firefox MV3's `downloads.download` rejects `data:`, `http:`, etc.
+        // We refuse anything that isn't a `blob:` URL early to fail loudly
+        // rather than surface the cryptic API error.
+        revokeBlobUrl(blobUrl);
+        throw new Error(
+          `DownloadService produced a non-blob URL (${blobUrl.slice(0, 16)}…); ` +
+            'browser.downloads.download in Firefox MV3 only accepts blob:/moz-extension: URLs',
+        );
+      }
       const id = await api.downloads.download({
         url: blobUrl,
         filename,
@@ -67,9 +104,7 @@ export function createDownloadService(api: DownloadApi = browser): DownloadServi
       // effort: if the browser never fires onChanged (e.g. user cancels),
       // we leak the blob URL until the service worker restarts.
       const onChanged = api.downloads.onChanged;
-      const revoke = () => {
-        api.urls?.revokeObjectURL?.(blobUrl);
-      };
+      const revoke = () => revokeBlobUrl(blobUrl);
       if (onChanged?.addListener) {
         onChanged.addListener((delta) => {
           if (delta.id === id && delta.state?.current === 'complete') revoke();
@@ -80,19 +115,6 @@ export function createDownloadService(api: DownloadApi = browser): DownloadServi
       return { id, filename, blobUrl };
     },
   };
-}
-
-function bytesToDataUrl(bytes: Uint8Array, mime: string): string {
-  // base64 via chunked concat (works in any modern engine).
-  let binary = '';
-  for (let i = 0; i < bytes.byteLength; i += 1) {
-    binary += String.fromCharCode(bytes[i]!);
-  }
-  const b64 =
-    typeof btoa === 'function'
-      ? btoa(binary)
-      : Buffer.from(bytes).toString('base64');
-  return `data:${mime};base64,${b64}`;
 }
 
 // `browser` global is provided by @types/firefox-webext-browser in the
