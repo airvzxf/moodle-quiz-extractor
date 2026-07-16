@@ -162,11 +162,84 @@ misma página, pero **no lanza**).
 **Esperado**:
 - Status: `Cancelado. ...` (igual que 2.4).
 - Los radios / checkboxes marcados **hasta el momento del cancel**
-  permanecen marcados (cancelar no "deshace" — eso es responsabilidad
+  permanecen marcados (cancelar no "deshade" — eso es responsabilidad
   del usuario).
 - Los spies se desinstalaron (intenta de nuevo `form.submit()`:
   ya NO lanza `MQX-FILL-304`; el form vuelve a su comportamiento
   nativo).
+
+### 2.6 Persistencia del popup (auto-resume al cambiar de ventana)
+
+Este flujo valida que cambiar de ventana y volver NO pierde progreso.
+
+1. Abre el popup. Pestaña **Autocompletar**.
+2. Pega una lista y pulsa **Validar respuestas**. Espera el status
+   `OK: N pasos listos`.
+3. **Cambia a otra ventana** (Geany, otra pestaña del navegador, el
+   escritorio, lo que sea). El popup se cierra automáticamente.
+4. **Vuelve a la ventana de Firefox y haz clic en el icono de la
+   extensión** para reabrir el popup.
+
+**Esperado**:
+- Status: `Restaurando trabajo anterior…` durante un instante, luego
+  `Trabajo anterior restaurado. N pasos listos. Pulsa "Aplicar
+  respuestas" o "Cancelar".`
+- El textarea contiene la lista que pegaste.
+- El botón **Descargar ZIP** sigue habilitado (la detección del
+  cuestionario se restauró también).
+- **Aplicar respuestas** y **Cancelar** están habilitados.
+- En la consola del content script: ningún error.
+
+5. Pulsa **Aplicar respuestas** — debe funcionar sin re-validar (el
+   content script ya recibió el `prepareAutofill` silencioso durante
+   el hydrate).
+
+#### 2.6.bis Stale-tab (cambio de cuestionario)
+
+1. En el popup restaurado, cambia la pestaña activa a otro Moodle
+   (por ejemplo, navega a `https://otro-moodle.edu/mod/quiz/...`).
+2. Reabre el popup.
+
+**Esperado**:
+- El popup arranca en estado limpio (no aparece el banner de
+  restauración).
+- Status: `Pulsa "Extraer página actual" para detectar el cuestionario.`
+
+#### 2.6.ter TTL de 30 min
+
+1. Repite los pasos 1-2 de §2.6.
+2. **Espera 30 minutos** (o reduce temporalmente
+   `DEFAULT_POPUP_SESSION_TTL_MS` en `src/background/popup-session-store.ts`
+   a 5000 ms y espera 6 s).
+3. Reabre el popup.
+
+**Esperado**:
+- El popup NO restaura estado (TTL expirado).
+- Status: `Pulsa "Extraer página actual" para detectar el cuestionario.`
+
+#### 2.6.quater Texto del textarea se persiste al teclear
+
+1. En el popup, escribe manualmente varias líneas en el textarea.
+2. **Espera 1 segundo** (el debounce es 500 ms).
+3. Cambia de ventana y vuelve.
+
+**Esperado**:
+- El textarea contiene las líneas que escribiste (persistidas antes
+  del cambio de ventana).
+
+### 2.7 Limpiar state al cambiar de cuestionario
+
+1. Repite §2.6 para tener un state persistido.
+2. Cierra el popup.
+3. En la misma pestaña, navega a una página de Moodle que NO sea un
+   cuestionario (por ejemplo, la portada del curso).
+4. Reabre el popup.
+
+**Esperado**:
+- El popup detecta que la pestaña ya no es un cuestionario y descarta
+  el state (la razón `stale-tab`).
+- Status: `Esta pestaña no parece un intento de cuestionario Moodle.`
+- En storage, la entrada `mqx:popup:<tabId>` ya no existe.
 
 ### 2.5 Smoke negativo: letra inexistente
 

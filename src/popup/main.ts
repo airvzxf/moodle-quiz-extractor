@@ -7,19 +7,28 @@
 // inside `entrypoints/`).
 //
 // Communication contract:
-//   1. detect   → { kind: 'extractQuiz' }                (content → here)
-//   2. download → { kind: 'zipQuiz', document, tabUrl } (here → background)
-//   3. result   → { kind: 'zipResult', ok, ... }         (background → here)
-//   4. autofill → { kind: 'prepareAutofill', jobId, answersText } (here → content)
-//   5. apply    → { kind: 'applyAutofill', jobId }       (here → content)
-//   6. abort    → { kind: 'abortAutofill', jobId }       (here → content)
+//   1. detect     → { kind: 'extractQuiz' }                (content → here)
+//   2. download   → { kind: 'zipQuiz', document, tabUrl } (here → background)
+//   3. result     → { kind: 'zipResult', ok, ... }         (background → here)
+//   4. autofill   → { kind: 'prepareAutofill', jobId, answersText } (here → content)
+//   5. apply      → { kind: 'applyAutofill', jobId }       (here → content)
+//   6. abort      → { kind: 'abortAutofill', jobId }       (here → content)
+//   7. persistence → { kind: 'loadPopupSession' / 'savePopupSession' / 'clearPopupSession' }
+//                   The popup stores its work-in-progress state in
+//                   storage.session via the background so switching
+//                   windows does not lose progress (MV3 destroys the
+//                   popup on blur).
 
 import type { QuizDocument } from '~/domain/quiz-schema';
 import type {
   ApplyAutofillResult,
+  ClearPopupSessionResult,
   GetAutofillJobResult,
+  LoadPopupSessionResult,
   PrepareAutofillResult,
   QuizDocumentMessage,
+  SavePopupSessionRequest,
+  SavePopupSessionResult,
   ZipResult,
 } from '~/messaging/runtime-messages';
 
@@ -28,7 +37,10 @@ interface RuntimeApi {
     query: (
       q: { active: boolean; currentWindow: boolean },
     ) => Promise<Array<{ id?: number; url?: string }>>;
-    sendMessage: (tabId: number, message: unknown) => Promise<unknown>;
+    sendMessage: (
+      tabId: number,
+      message: unknown,
+    ) => Promise<unknown>;
   };
   runtime?: {
     sendMessage: (message: unknown) => Promise<unknown>;
@@ -38,10 +50,27 @@ interface RuntimeApi {
 
 const api: RuntimeApi = browser;
 
-const state: {
+interface PopupState {
   lastDocument: QuizDocument | null;
   lastJobId: string | null;
-} = { lastDocument: null, lastJobId: null };
+  /** Tab id where the last extraction happened (for persistence key). */
+  contextTabId: number | null;
+  /** SHA-256 of the live origin (for persistence key). */
+  contextOriginHash: string | null;
+  /** True when the textarea has text or a job was prepared. */
+  hasAutofillContext: boolean;
+}
+
+const state: PopupState = {
+  lastDocument: null,
+  lastJobId: null,
+  contextTabId: null,
+  contextOriginHash: null,
+  hasAutofillContext: false,
+};
+
+const PERSIST_DEBOUNCE_MS = 500;
+let persistTimer: ReturnType<typeof setTimeout> | null = null;
 
 function setStatus(text: string, st: 'idle' | 'busy' | 'ok' | 'error'): void {
   const status = document.getElementById('status');
@@ -62,6 +91,24 @@ async function getActiveTab(): Promise<ActiveTabInfo | null> {
   return { id: tab.id, url: typeof tab.url === 'string' ? tab.url : undefined };
 }
 
+async function computeOriginHash(url: string | undefined): Promise<string | null> {
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') return null;
+    if (typeof globalThis.crypto?.subtle?.digest === 'function') {
+      const buf = new TextEncoder().encode(u.origin);
+      const digest = await globalThis.crypto.subtle.digest('SHA-256', buf);
+      return Array.from(new Uint8Array(digest))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('');
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 async function askContentForDocument(tabId: number): Promise<QuizDocument | null> {
   const reply = (await api.tabs?.sendMessage(tabId, {
     kind: 'extractQuiz',
@@ -75,6 +122,10 @@ async function askContentForDocument(tabId: number): Promise<QuizDocument | null
 
 async function sendToContent<T>(tabId: number, message: unknown): Promise<T | null> {
   return (await api.tabs?.sendMessage(tabId, message)) as T | null;
+}
+
+async function sendToBackground<T>(message: unknown): Promise<T | null> {
+  return (await api.runtime?.sendMessage(message)) as T | null;
 }
 
 function generateJobId(): string {
@@ -112,6 +163,140 @@ function wireTabs(): void {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Persistence: the popup stores its work-in-progress state in
+// `storage.session` via the background so that switching windows does not
+// lose progress. The background holds the actual store
+// (PopupSessionStore in src/background/popup-session-store.ts); the popup
+// just sends the load/save/clear messages.
+// ---------------------------------------------------------------------------
+
+function buildPersistPayload(): SavePopupSessionRequest | null {
+  if (state.contextTabId === null || state.contextOriginHash === null) return null;
+  const input = document.getElementById('answers-input') as HTMLTextAreaElement | null;
+  return {
+    kind: 'savePopupSession',
+    tabId: state.contextTabId,
+    originHash: state.contextOriginHash,
+    state: {
+      answersText: input?.value ?? '',
+      lastDocumentJson: state.lastDocument ? JSON.stringify(state.lastDocument) : '',
+      lastJobId: state.lastJobId,
+      hasAutofillContext: state.hasAutofillContext,
+    },
+  };
+}
+
+function schedulePersist(): void {
+  if (persistTimer !== null) clearTimeout(persistTimer);
+  persistTimer = setTimeout(() => {
+    persistTimer = null;
+    const payload = buildPersistPayload();
+    if (payload) void sendToBackground<SavePopupSessionResult>(payload);
+  }, PERSIST_DEBOUNCE_MS);
+}
+
+async function flushPersist(): Promise<void> {
+  if (persistTimer !== null) {
+    clearTimeout(persistTimer);
+    persistTimer = null;
+  }
+  const payload = buildPersistPayload();
+  if (payload) await sendToBackground<SavePopupSessionResult>(payload);
+}
+
+async function clearPersistedState(): Promise<void> {
+  if (state.contextTabId === null || state.contextOriginHash === null) return;
+  await sendToBackground<ClearPopupSessionResult>({
+    kind: 'clearPopupSession',
+    tabId: state.contextTabId,
+    originHash: state.contextOriginHash,
+  });
+}
+
+/**
+ * Try to restore a previous session. If the storage has a valid state
+ * for the current tab+origin, hydrate `state`, restore the textarea,
+ * and (silently) re-run `prepareAutofill` so the in-memory job is
+ * rebuilt in the content script (the SW may have been restarted since
+ * the popup was last closed).
+ */
+async function hydrate(): Promise<void> {
+  const tab = await getActiveTab();
+  if (tab === null) return;
+  const originHash = await computeOriginHash(tab.url);
+  if (!originHash) return;
+
+  const res = (await sendToBackground<LoadPopupSessionResult>({
+    kind: 'loadPopupSession',
+    tabId: tab.id,
+    originHash,
+  })) as LoadPopupSessionResult | null;
+  if (!res || !res.found || !res.state) return;
+
+  const candidate = res.state as {
+    answersText?: unknown;
+    lastDocumentJson?: unknown;
+    lastJobId?: unknown;
+    hasAutofillContext?: unknown;
+  };
+  if (typeof candidate.answersText !== 'string') return;
+
+  const input = document.getElementById('answers-input') as HTMLTextAreaElement | null;
+  const btnZip = document.getElementById('download-zip') as HTMLButtonElement | null;
+  const btnApply = document.getElementById('autofill-apply') as HTMLButtonElement | null;
+  const btnCancel = document.getElementById('autofill-cancel') as HTMLButtonElement | null;
+
+  state.contextTabId = tab.id;
+  state.contextOriginHash = originHash;
+  state.hasAutofillContext = Boolean(candidate.hasAutofillContext);
+
+  if (input) input.value = candidate.answersText;
+
+  // Restore the extracted QuizDocument (best-effort parse).
+  if (typeof candidate.lastDocumentJson === 'string' && candidate.lastDocumentJson.length > 0) {
+    try {
+      const parsed = JSON.parse(candidate.lastDocumentJson) as QuizDocument;
+      state.lastDocument = parsed;
+      if (btnZip) btnZip.disabled = false;
+      setStatus(`Detectado: ${parsed.title} — ${parsed.questions.length} pregunta(s).`, 'ok');
+    } catch {
+      state.lastDocument = null;
+    }
+  }
+
+  // The autofill job lives in the content script's in-memory map; that
+  // map resets when Firefox restarts the SW. Silently re-prepare so the
+  // user can keep working without an extra "Validar" click.
+  if (
+    state.hasAutofillContext &&
+    typeof candidate.lastJobId === 'string' &&
+    candidate.lastJobId.length > 0 &&
+    state.lastDocument
+  ) {
+    state.lastJobId = candidate.lastJobId;
+    setStatus('Restaurando trabajo anterior…', 'busy');
+    const prep = (await sendToContent<PrepareAutofillResult>(tab.id, {
+      kind: 'prepareAutofill',
+      jobId: candidate.lastJobId,
+      answersText: candidate.answersText,
+    })) as PrepareAutofillResult | null;
+    if (prep && prep.kind === 'prepareAutofillResult' && prep.ok) {
+      const warnMsg = (prep.warnings ?? []).length > 0 ? ` (${prep.warnings!.length} aviso(s))` : '';
+      setStatus(`Trabajo anterior restaurado. ${prep.stepCount ?? 0} pasos listos${warnMsg}. Pulsa "Aplicar respuestas" o "Cancelar".`, 'ok');
+      if (btnApply) btnApply.disabled = false;
+      if (btnCancel) btnCancel.disabled = false;
+    } else if (prep && prep.kind === 'prepareAutofillResult' && !prep.ok) {
+      setStatus(`Trabajo anterior restaurado, pero la validación falló: ${(prep.errors ?? []).join('; ')}`, 'error');
+      state.lastJobId = null;
+      state.hasAutofillContext = false;
+      if (btnApply) btnApply.disabled = true;
+      if (btnCancel) btnCancel.disabled = true;
+      await clearPersistedState();
+    }
+  }
+}
+
 function wireExtract(): void {
   const btnExtract = document.getElementById('extract-current') as HTMLButtonElement | null;
   const btnZip = document.getElementById('download-zip') as HTMLButtonElement | null;
@@ -127,8 +312,11 @@ function wireExtract(): void {
     const doc = await askContentForDocument(tab.id);
     if (!doc) return;
     state.lastDocument = doc;
+    state.contextTabId = tab.id;
+    state.contextOriginHash = await computeOriginHash(tab.url);
     setStatus(`Detectado: ${doc.title} — ${doc.questions.length} pregunta(s).`, 'ok');
     btnZip.disabled = false;
+    schedulePersist();
   });
 
   btnZip.addEventListener('click', async () => {
@@ -136,11 +324,6 @@ function wireExtract(): void {
     setStatus('Descargando ZIP…', 'busy');
     btnZip.disabled = true;
     try {
-      // The popup captures the active tab URL itself and forwards it to
-      // the background so the AssetFetcher can request a permission
-      // scoped to the real Moodle origin (e.g.
-      // `https://moodle.example.edu/*`). Without this, the background
-      // falls back to `<all_urls>` (PR #15 fix).
       const tab = await getActiveTab();
       const tabUrl = tab?.url;
       const result = (await api.runtime?.sendMessage({
@@ -175,6 +358,12 @@ function wireAutofill(): void {
   const btnCancel = document.getElementById('autofill-cancel') as HTMLButtonElement | null;
   if (!input || !btnValidate || !btnApply || !btnCancel) return;
 
+  // Persist textarea edits on every keystroke (debounced 500 ms).
+  input.addEventListener('input', () => {
+    state.hasAutofillContext = input.value.trim().length > 0;
+    schedulePersist();
+  });
+
   const tabId = async (): Promise<number | null> => {
     const tab = await getActiveTab();
     return tab?.id ?? null;
@@ -207,18 +396,19 @@ function wireAutofill(): void {
       if (!res.ok) {
         setStatus(`Errores: ${(res.errors ?? []).join('; ')}`, 'error');
         state.lastJobId = null;
+        state.hasAutofillContext = false;
         btnApply.disabled = true;
         btnCancel.disabled = true;
+        await clearPersistedState();
         return;
       }
       state.lastJobId = jobId;
+      state.hasAutofillContext = true;
       const warnMsg = (res.warnings ?? []).length > 0 ? ` (${res.warnings!.length} aviso(s))` : '';
       setStatus(`OK: ${res.stepCount ?? 0} pasos listos${warnMsg}. Pulsa "Aplicar respuestas" o "Cancelar".`, 'ok');
       btnApply.disabled = false;
-      // Enable Cancel after a successful validation so the user can
-      // back out before touching the DOM. The job sits in the content
-      // script's in-memory map until either apply or abort clears it.
       btnCancel.disabled = false;
+      schedulePersist();
     } catch (err) {
       setStatus(`Error: ${(err as Error).message}`, 'error');
     } finally {
@@ -232,7 +422,6 @@ function wireAutofill(): void {
     if (tid === null) return;
     setStatus('Aplicando…', 'busy');
     btnApply.disabled = true;
-    // Cancel stays enabled during apply so the user can abort mid-loop.
     try {
       const res = (await sendToContent<ApplyAutofillResult>(tid, {
         kind: 'applyAutofill',
@@ -245,6 +434,9 @@ function wireAutofill(): void {
         setStatus(`Fallos: ${(res.errors ?? []).join('; ')}`, 'error');
       } else {
         setStatus(`Listo: ${res.applied}/${res.total} controles aplicados. Revisa y envía manualmente.`, 'ok');
+        state.lastJobId = null;
+        state.hasAutofillContext = false;
+        await clearPersistedState();
       }
     } catch (err) {
       setStatus(`Error: ${(err as Error).message}`, 'error');
@@ -252,7 +444,7 @@ function wireAutofill(): void {
       btnCancel.disabled = true;
       void sendToContent<GetAutofillJobResult>(tid, {
         kind: 'getAutofillJob',
-        jobId: state.lastJobId,
+        jobId: state.lastJobId ?? '',
       });
     }
   });
@@ -260,9 +452,9 @@ function wireAutofill(): void {
   /**
    * Cancel button. Two cases:
    *  (a) before apply — the user has validated but changed their mind.
-   *      We abort the in-memory job, clear the textarea, and return to
-   *      idle. The QuizDocument detection (lastDocument) and the ZIP
-   *      download button stay enabled — re-detection is unrelated.
+   *      We abort the in-memory job, clear the textarea, and return
+   *      to idle. The QuizDocument detection (lastDocument) and the
+   *      ZIP download button stay enabled — re-detection is unrelated.
    *  (b) during apply — abortAutofill is already in flight via the
    *      content script's per-step loop. Calling it again is a no-op
    *      (handleAbort is idempotent).
@@ -275,9 +467,21 @@ function wireAutofill(): void {
       state.lastJobId = null;
     }
     input.value = '';
+    state.hasAutofillContext = false;
     btnApply.disabled = true;
     btnCancel.disabled = true;
     setStatus('Cancelado. Pega otra lista o pulsa "Extraer página actual" para reiniciar.', 'idle');
+    await clearPersistedState();
+  });
+}
+
+function wirePersistenceLifecycle(): void {
+  // Flush the debounced save when the popup is about to close.
+  window.addEventListener('beforeunload', () => {
+    void flushPersist();
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') void flushPersist();
   });
 }
 
@@ -285,7 +489,11 @@ function wire(): void {
   wireTabs();
   wireExtract();
   wireAutofill();
+  wirePersistenceLifecycle();
   setStatus('Pulsa "Extraer página actual" para detectar el cuestionario.', 'idle');
+  // Hydrate silently. Failures (no tab, no storage, malformed payload)
+  // are non-fatal — the popup just starts in the default idle state.
+  void hydrate();
 }
 
 if (typeof document !== 'undefined') {
