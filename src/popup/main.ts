@@ -69,7 +69,7 @@ const state: PopupState = {
   hasAutofillContext: false,
 };
 
-const PERSIST_DEBOUNCE_MS = 500;
+const PERSIST_DEBOUNCE_MS = 150;
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
 
 function setStatus(text: string, st: 'idle' | 'busy' | 'ok' | 'error'): void {
@@ -85,10 +85,15 @@ interface ActiveTabInfo {
 }
 
 async function getActiveTab(): Promise<ActiveTabInfo | null> {
-  const tabs = await api.tabs?.query({ active: true, currentWindow: true });
-  const tab = tabs?.[0];
-  if (!tab || typeof tab.id !== 'number') return null;
-  return { id: tab.id, url: typeof tab.url === 'string' ? tab.url : undefined };
+  try {
+    const tabs = await api.tabs?.query({ active: true, currentWindow: true });
+    const tab = tabs?.[0];
+    if (!tab || typeof tab.id !== 'number') return null;
+    const url = typeof tab.url === 'string' ? tab.url : undefined;
+    return { id: tab.id, url };
+  } catch {
+    return null;
+  }
 }
 
 async function computeOriginHash(url: string | undefined): Promise<string | null> {
@@ -187,13 +192,27 @@ function buildPersistPayload(): SavePopupSessionRequest | null {
   };
 }
 
+/**
+ * Save the popup state to storage.session. We do NOT debounce the actual
+ * write because Firefox MV3 destroys the popup abruptly on blur, cancelling
+ * any pending setTimeout. Saves are fast (in-memory write + a single
+ * async storage.session.set, fire-and-forget). The `input` listener for
+ * the textarea is the only high-frequency trigger; we coalesce by
+ * skipping if a save was just sent in the last PERSIST_DEBOUNCE_MS.
+ */
+function persistNow(): void {
+  const payload = buildPersistPayload();
+  if (!payload) return;
+  void sendToBackground<SavePopupSessionResult>(payload);
+}
+
 function schedulePersist(): void {
-  if (persistTimer !== null) clearTimeout(persistTimer);
+  if (persistTimer !== null) return;
   persistTimer = setTimeout(() => {
     persistTimer = null;
-    const payload = buildPersistPayload();
-    if (payload) void sendToBackground<SavePopupSessionResult>(payload);
+    // No-op: persistNow is called directly on each state change.
   }, PERSIST_DEBOUNCE_MS);
+  persistNow();
 }
 
 async function flushPersist(): Promise<void> {
@@ -201,13 +220,12 @@ async function flushPersist(): Promise<void> {
     clearTimeout(persistTimer);
     persistTimer = null;
   }
-  const payload = buildPersistPayload();
-  if (payload) await sendToBackground<SavePopupSessionResult>(payload);
+  persistNow();
 }
 
-async function clearPersistedState(): Promise<void> {
+async function clearPersistedState(reason: 'user-cancel' | 'validate-failed' | 'hydrate-prepare-failed'): Promise<void> {
   if (state.contextTabId === null || state.contextOriginHash === null) return;
-  await sendToBackground<ClearPopupSessionResult>({
+  void sendToBackground<ClearPopupSessionResult>({
     kind: 'clearPopupSession',
     tabId: state.contextTabId,
     originHash: state.contextOriginHash,
@@ -292,7 +310,7 @@ async function hydrate(): Promise<void> {
       state.hasAutofillContext = false;
       if (btnApply) btnApply.disabled = true;
       if (btnCancel) btnCancel.disabled = true;
-      await clearPersistedState();
+      await clearPersistedState('hydrate-prepare-failed');
     }
   }
 }
@@ -358,7 +376,8 @@ function wireAutofill(): void {
   const btnCancel = document.getElementById('autofill-cancel') as HTMLButtonElement | null;
   if (!input || !btnValidate || !btnApply || !btnCancel) return;
 
-  // Persist textarea edits on every keystroke (debounced 500 ms).
+  // Persist textarea edits on every keystroke (coalesced via the
+  // debounce timer; see schedulePersist).
   input.addEventListener('input', () => {
     state.hasAutofillContext = input.value.trim().length > 0;
     schedulePersist();
@@ -399,7 +418,7 @@ function wireAutofill(): void {
         state.hasAutofillContext = false;
         btnApply.disabled = true;
         btnCancel.disabled = true;
-        await clearPersistedState();
+        await clearPersistedState('validate-failed');
         return;
       }
       state.lastJobId = jobId;
@@ -432,11 +451,14 @@ function wireAutofill(): void {
       }
       if (!res.ok) {
         setStatus(`Fallos: ${(res.errors ?? []).join('; ')}`, 'error');
+        // Keep persisted state so the user can review/cancel after
+        // window switches even when apply partially failed.
       } else {
         setStatus(`Listo: ${res.applied}/${res.total} controles aplicados. Revisa y envía manualmente.`, 'ok');
-        state.lastJobId = null;
-        state.hasAutofillContext = false;
-        await clearPersistedState();
+        // Keep the persisted state on success: the user must be able to
+        // switch windows and come back to see the applied status.
+        // Re-applying is idempotent (re-clicking already-checked radios
+        // is a no-op). Cancel is the explicit "start over" path.
       }
     } catch (err) {
       setStatus(`Error: ${(err as Error).message}`, 'error');
@@ -450,14 +472,11 @@ function wireAutofill(): void {
   });
 
   /**
-   * Cancel button. Two cases:
-   *  (a) before apply — the user has validated but changed their mind.
-   *      We abort the in-memory job, clear the textarea, and return
-   *      to idle. The QuizDocument detection (lastDocument) and the
-   *      ZIP download button stay enabled — re-detection is unrelated.
-   *  (b) during apply — abortAutofill is already in flight via the
-   *      content script's per-step loop. Calling it again is a no-op
-   *      (handleAbort is idempotent).
+   * Cancel button. The user has validated but changed their mind (or
+   * wants to start over after applying). We abort the in-memory job
+   * (if any), clear the textarea, and reset to idle. The QuizDocument
+   * detection (lastDocument) and the ZIP download button stay enabled
+   * — re-detection is unrelated.
    */
   btnCancel.addEventListener('click', async () => {
     const tid = await tabId();
@@ -471,13 +490,18 @@ function wireAutofill(): void {
     btnApply.disabled = true;
     btnCancel.disabled = true;
     setStatus('Cancelado. Pega otra lista o pulsa "Extraer página actual" para reiniciar.', 'idle');
-    await clearPersistedState();
+    await clearPersistedState('user-cancel');
   });
 }
 
 function wirePersistenceLifecycle(): void {
-  // Flush the debounced save when the popup is about to close.
+  // Flush the pending save when the popup is about to close. Firefox
+  // MV3 may or may not fire these events; either way, the writes have
+  // already been issued synchronously on each state change.
   window.addEventListener('beforeunload', () => {
+    void flushPersist();
+  });
+  window.addEventListener('pagehide', () => {
     void flushPersist();
   });
   document.addEventListener('visibilitychange', () => {
