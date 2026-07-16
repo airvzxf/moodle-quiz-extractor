@@ -18,6 +18,8 @@ export interface MoodleDom {
   getQuizTitle(): string | null;
   /** Course / unit / section, when discoverable. */
   getCourseBreadcrumb(): string | null;
+  /** Structured breadcrumb: each .breadcrumb-item as a separate entry. */
+  getBreadcrumbItems(): string[];
   /** mod_quiz-section-heading h3 — ABSENT in ddoo-02, so this may return null. */
   getSectionHeading(): string | null;
   /** `<a class="qnbutton" data-quiz-page="N">` — pages observed via nav. */
@@ -116,6 +118,15 @@ class DefaultMoodleDom implements MoodleDom {
       '.breadcrumb, [aria-label*="rumb"] nav',
     );
     return crumb?.textContent?.replace(/\s+/g, ' ').trim() || null;
+  }
+
+  getBreadcrumbItems(): string[] {
+    const items = Array.from(
+      this.document.querySelectorAll<HTMLElement>('.breadcrumb-item'),
+    );
+    return items
+      .map((it) => it.textContent?.replace(/\s+/g, ' ').trim() || '')
+      .filter(Boolean);
   }
 
   getSectionHeading(): string | null {
