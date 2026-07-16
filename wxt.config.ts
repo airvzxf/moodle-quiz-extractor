@@ -22,7 +22,6 @@ export default defineConfig({
         data_collection_permissions: { required: ['none'] },
       },
       gecko_android: {
-        id: 'moodle-quiz-extractor@airvzxf.dev',
         strict_min_version: '142.0',
       },
     },
