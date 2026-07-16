@@ -36,6 +36,19 @@ export const MQX = {
   FILL_CONTROL_NOT_CONFIRMED: 'MQX-FILL-302',
   FILL_HIDDEN_TOUCHED: 'MQX-FILL-303',
   FILL_SUBMIT_BLOCKED: 'MQX-FILL-304',
+  // Phase 3 additions: extended no-submit invariant (fetch spy) and the
+  // job machine. The numbering continues after 304 without renumbering
+  // existing entries (the existing codes are referenced by tests and
+  // fixtures).
+  FILL_FETCH_BLOCKED: 'MQX-FILL-305',
+  FILL_JOB_EXPIRED: 'MQX-FILL-306',
+  FILL_FINGERPRINT_MISMATCH: 'MQX-FILL-307',
+  FILL_UNSUPPORTED_STRICT: 'MQX-FILL-308',
+  FILL_CONTROL_NOT_CONFIRMED_POST: 'MQX-FILL-309',
+
+  // page / pagination stage
+  PAGE_LAYOUT_UNRECOGNIZED: 'MQX-PAGE-005',
+  PAGE_NAVIGATION_SKIPPED: 'MQX-PAGE-006',
 
   // privacy
   PRIV_LEAK_BLOCKED: 'MQX-PRIV-401',
