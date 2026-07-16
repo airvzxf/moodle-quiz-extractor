@@ -47,3 +47,62 @@ export const ZipResultSchema = z.object({
   error: z.string().optional(),
 });
 export type ZipResult = z.infer<typeof ZipResultSchema>;
+
+// ---------------------------------------------------------------------------
+// Fase 3 — autofill runtime messages. All new schemas are retro-compatible:
+// the receivers use `safeParse`, so an older popup that doesn't know about
+// `prepareAutofill` continues to work with `extractQuiz` / `zipQuiz`.
+// ---------------------------------------------------------------------------
+
+export const PrepareAutofillRequestSchema = z.object({
+  kind: z.literal('prepareAutofill'),
+  jobId: z.string().uuid(),
+  answersText: z.string(),
+});
+export type PrepareAutofillRequest = z.infer<typeof PrepareAutofillRequestSchema>;
+
+export const PrepareAutofillResultSchema = z.object({
+  kind: z.literal('prepareAutofillResult'),
+  jobId: z.string().uuid(),
+  ok: z.boolean(),
+  errors: z.array(z.string()).optional(),
+  warnings: z.array(z.string()).optional(),
+  stepCount: z.number().int().nonnegative().optional(),
+});
+export type PrepareAutofillResult = z.infer<typeof PrepareAutofillResultSchema>;
+
+export const ApplyAutofillRequestSchema = z.object({
+  kind: z.literal('applyAutofill'),
+  jobId: z.string().uuid(),
+});
+export type ApplyAutofillRequest = z.infer<typeof ApplyAutofillRequestSchema>;
+
+export const ApplyAutofillResultSchema = z.object({
+  kind: z.literal('applyAutofillResult'),
+  jobId: z.string().uuid(),
+  ok: z.boolean(),
+  applied: z.number().int().nonnegative(),
+  total: z.number().int().nonnegative(),
+  errors: z.array(z.string()).optional(),
+});
+export type ApplyAutofillResult = z.infer<typeof ApplyAutofillResultSchema>;
+
+export const AbortAutofillRequestSchema = z.object({
+  kind: z.literal('abortAutofill'),
+  jobId: z.string().uuid(),
+});
+export type AbortAutofillRequest = z.infer<typeof AbortAutofillRequestSchema>;
+
+export const GetAutofillJobRequestSchema = z.object({
+  kind: z.literal('getAutofillJob'),
+  jobId: z.string().uuid(),
+});
+export type GetAutofillJobRequest = z.infer<typeof GetAutofillJobRequestSchema>;
+
+export const GetAutofillJobResultSchema = z.object({
+  kind: z.literal('getAutofillJobResult'),
+  jobId: z.string().uuid(),
+  found: z.boolean(),
+  state: z.string().optional(),
+});
+export type GetAutofillJobResult = z.infer<typeof GetAutofillJobResultSchema>;
