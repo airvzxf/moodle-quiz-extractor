@@ -89,6 +89,36 @@ Reglas:
 - **Checkbox** (selección múltiple): letras separadas por comas (`a,c`).
 - **Texto libre**: todo lo que sigue al número (línea completa).
 
+### Ejemplo real renderizado
+
+El renderer produce este output sobre la fixture `dsop-01` (archivo completo en `tests/contracts/dsop-01.golden.md`):
+
+```markdown
+# 02 – Sistemas operativos – DSOP | Unidad 1
+
+## Evaluación diagnóstica
+
+Metadata
+Desconocido: DU1_DSOP
+
+---
+
+### 1. Un ejemplo de función multitarea en un sistema operativo es:
+#### Respuestas
+Selecciona una opción:
+[ ] a. La ejecución de varios usuarios a la vez en el sistema operativo.
+[ ] b. Ejecución de varios procesos y funciones de manera simultánea.
+[ ] c. El uso y carga de dos sistemas operativos a la vez.
+[ ] d. La ejecución de diferentes sitios web al mismo tiempo.
+
+Metadata
+Tipo de respuesta: Radio buttons.
+Puntaje de 10.00
+Sin responder aún
+
+---
+```
+
 ---
 
 ## Instalación de desarrollo
@@ -131,13 +161,15 @@ Política de datos: `data_collection_permissions.required: ["none"]`.
 
 ## Estado del proyecto
 
-Esta es la **Fase 0 + Fase 1 parcial** del roadmap derivado de la iteración `iter-1` de la mezcla de agentes. Ver `docs/ARCHITECTURE.md` §Fases para el plan completo.
+Esta es la **Fase 0 + Fase 1** del roadmap derivado de la iteración `iter-1` de la mezcla de agentes. Ver `docs/ARCHITECTURE.md` §Fases para el plan completo.
 
 | PR | Alcance |
 |---|---|
-| #1 | Scaffold WXT MV3 + correcciones obligatorias a T15 |
-| #2 | Parser radio/checkbox + detector + content script |
-| #3 | Renderer Markdown literal al `prompt.md` + golden file |
+| #1 (merged) | Scaffold WXT MV3 + correcciones obligatorias a T15 |
+| #2 (merged) | Parser radio/checkbox + detector + content script + no-submit invariant |
+| #3 (este PR) | Renderer Markdown literal al `prompt.md` + golden files para las 4 fixtures + 8 tests de integración |
+
+Tests: **36/36** verdes (11 dom-adapter, 9 parsers, 4 no-submit-spy, 8 markdown/extract, 4 Zod validation). `web-ext lint`: 0 errors / 0 notices / 0 warnings.
 
 ## Licencia
 
