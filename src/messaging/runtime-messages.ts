@@ -106,3 +106,66 @@ export const GetAutofillJobResultSchema = z.object({
   state: z.string().optional(),
 });
 export type GetAutofillJobResult = z.infer<typeof GetAutofillJobResultSchema>;
+
+// ---------------------------------------------------------------------------
+// Popup session persistence. The popup persists its work-in-progress state
+// (extracted QuizDocument, answers textarea, autofill jobId) in
+// `storage.session` so that switching windows does not lose progress.
+// ---------------------------------------------------------------------------
+
+export const LoadPopupSessionRequestSchema = z.object({
+  kind: z.literal('loadPopupSession'),
+  tabId: z.number().int().nonnegative(),
+  originHash: z.string().length(64),
+});
+export type LoadPopupSessionRequest = z.infer<typeof LoadPopupSessionRequestSchema>;
+
+export const LoadPopupSessionResultSchema = z.object({
+  kind: z.literal('loadPopupSessionResult'),
+  found: z.boolean(),
+  /**
+   * The serialized PopupSessionState. Validated downstream by the popup
+   * (we cannot trust the background's stored shape across versions).
+   */
+  state: z.unknown().optional(),
+  reason: z.enum(['missing', 'expired', 'stale-tab', 'malformed']).optional(),
+});
+export type LoadPopupSessionResult = z.infer<typeof LoadPopupSessionResultSchema>;
+
+export const SavePopupSessionRequestSchema = z.object({
+  kind: z.literal('savePopupSession'),
+  tabId: z.number().int().nonnegative(),
+  originHash: z.string().length(64),
+  /**
+   * Full PopupSessionState. The background applies its own
+   * `redactString` before writing to storage; the popup also redacts
+   * the in-memory form. Belt and suspenders.
+   */
+  state: z.object({
+    answersText: z.string(),
+    lastDocumentJson: z.string(),
+    lastJobId: z.string().nullable(),
+    hasAutofillContext: z.boolean(),
+  }),
+});
+export type SavePopupSessionRequest = z.infer<typeof SavePopupSessionRequestSchema>;
+
+export const SavePopupSessionResultSchema = z.object({
+  kind: z.literal('savePopupSessionResult'),
+  ok: z.boolean(),
+  savedAt: z.number().int().nonnegative().optional(),
+});
+export type SavePopupSessionResult = z.infer<typeof SavePopupSessionResultSchema>;
+
+export const ClearPopupSessionRequestSchema = z.object({
+  kind: z.literal('clearPopupSession'),
+  tabId: z.number().int().nonnegative(),
+  originHash: z.string().length(64),
+});
+export type ClearPopupSessionRequest = z.infer<typeof ClearPopupSessionRequestSchema>;
+
+export const ClearPopupSessionResultSchema = z.object({
+  kind: z.literal('clearPopupSessionResult'),
+  ok: z.boolean(),
+});
+export type ClearPopupSessionResult = z.infer<typeof ClearPopupSessionResultSchema>;
