@@ -107,8 +107,8 @@ moodle-quiz-extractor/
 |---|---|---|
 | 0 | Higiene, privacidad, scaffold WXT MV3, correcciones T15 #3-#5 | merged (PR #2) |
 | 1 | Extracción monopágina + Markdown literal al `prompt.md` | merged (PR #4 + #6) |
-| 2 | Assets autenticados + ZIP (AssetPlanner, AssetFetchClient, ZipPackager, DownloadService, redactor, manifest, popup, CI) | PR #N (este PR) |
-| 3 | Paginación + autollenado seguro | futuro |
+| 2 | Assets autenticados + ZIP (AssetPlanner, AssetFetchClient, ZipPackager, DownloadService, redactor, manifest, popup, CI) | merged (PR #10 + #12 + #8) |
+| 3 | Paginación + autollenado seguro | merged (PR #15–#22) |
 | 4 | Diagnóstico two-tier, hardening, release Firefox | futuro |
 | 5 | Native Messaging/CLI, Android, Chromium | stretch |
 
@@ -136,6 +136,53 @@ y `optional_host_permissions: ['<all_urls>']`. La descarga autenticada de
 `pluginfile.php` se concede **sólo cuando el usuario pulsa "Descargar ZIP"
 en el popup**, vía `browser.permissions.request({ origins: [<pageOrigin>]/* })`,
 no se concede `<all_urls>` globalmente.
+
+## Fase 3 — cambios principales
+
+| Módulo | Rol | Tests |
+|---|---|---|
+| `src/autofill/answer-list-parser.ts` | Parser BNF puro del formato del README (`1. a)` / `2. a,c` / `3. texto`). Desambigua listas de letras de prosa natural. | 29 |
+| `src/autofill/apply-plan.ts` | `buildApplyPlan(answers, doc)`: strict (`unsupported` → abort, letras inexistentes → abort, duplicados → last-write-wins). | 13 |
+| `src/autofill/job-state.ts` | State machine pura (`idle → validating → previewing → applying → done | aborted | failed`) con `TransitionError` exhaustivo y matriz (state × event). | 47 |
+| `src/autofill/preview-validator.ts` | Revalida el plan contra `QuizDocument` actual tras la paginación. Faltas → `MQX-FILL-307`. | 5 |
+| `src/autofill/redact-answers.ts` | Wrapper de `redactString` por campo. Fail-closed ante canarios. | 3 |
+| `src/domain/apply-plan-schema.ts` | Zod schemas del `ApplyPlan` (consumido por `runtime-messages`). | cubierto por integration |
+| `src/moodle/parsers/short-text.ts` | Parser para `<input type=text>`. | 4 |
+| `src/moodle/parsers/long-text.ts` | Parser para `<textarea>`. | 3 |
+| `src/moodle/parsers/select.ts` | Parser para `<select>` (letras desde prefijo del texto o sintéticas). | 4 |
+| `src/moodle/parsers/registry.ts` | Despacha a los nuevos parsers antes del fallback `unsupported`. | 4 (en parsers.spec.ts) |
+| `src/background/job-store.ts` | Persistencia en `browser.storage.session` (TTL 30 min) con adaptadores mockeables. | 12 |
+| `src/background/page-fetch-client.ts` | GET autenticado con concurrencia 1 (semáforo), detecta redirect a `/login/`. | 9 |
+| `src/moodle/applicators/no-submit-spy.ts` | Refactor: `uninstall()` restaura `submit` / `requestSubmit` a no-ops. | (tests existentes) |
+| `src/moodle/applicators/fetch-spy.ts` | Cierra el último hueco de "no envío final" interceptando `fetch()` a `attempt.php?finishattempt|processattempt`. | 11 |
+| `src/moodle/applicators/control-applicator.ts` | `applyStep` con 5 mutadores (radio / checkbox / short_text / long_text / select). Setter nativo para que Moodle vea un input de usuario real. | 10 |
+| `src/moodle/pagination-controller.ts` | `clickNextPage`: clic sintético sobre `a.qnbutton[data-quiz-page=N]`. Preserva CSRF/referer/eventos de Moodle. | 5 |
+| `src/messaging/runtime-messages.ts` | +6 schemas Zod (`prepareAutofill`, `applyAutofill`, `abortAutofill`, `getAutofillJob`, …). Retro-compatibles. | cubierto por integration |
+| `src/entrypoints/content.ts` | Handlers `prepareAutofill` / `applyAutofill` / `abortAutofill` / `getAutofillJob`. Instala ambos spies durante `applyAutofill`. | cubierto por integration |
+| `src/entrypoints/popup.html` + `src/popup/main.ts` | 4 pestañas (Extraer / Autocompletar / Diagnóstico / Configuración); tab "Autocompletar" con textarea + Validar / Aplicar / Cancelar. | manual |
+| `tests/security/storage-no-sync.spec.ts` | Static grep: ningún archivo de `src/` puede importar `storage.sync`. | 2 |
+| `tests/security/host-permissions.spec.ts` | Static check: el manifest declara solo el baseline de Fase 2 (sin `cookies`). | 4 |
+| `tests/security/redaction-on-output.spec.ts` | Canarios en la entrada del usuario disparan `MqxPrivLeakError` en `redactParsedAnswers`. | 4 |
+| `tests/security/no-submit-invariant.spec.ts` | Para cada fixture redactada: form-spy lanza `MQX-FILL-304`, fetch-spy lanza `MQX-FILL-305` en POST. | 11 |
+
+**Taxonomía extendida** (`src/diagnostics/codes.ts`):
+- `MQX-FILL-305` — fetch a `processattempt.php`/`finishattempt` bloqueado por el spy.
+- `MQX-FILL-306` — `JobStore` caduca durante `applying`.
+- `MQX-FILL-307` — `stableFingerprint` no coincide entre extracción y aplicación.
+- `MQX-FILL-308` — pregunta `unsupported` en el `ApplyPlan` (política estricta).
+- `MQX-FILL-309` — post-condición del control no confirmada.
+- `MQX-PAGE-005` — layout no reconocido durante paginación.
+- `MQX-PAGE-006` — Moodle saltó una página / sesión caducada.
+
+**Seguridad (OWASP)**:
+- **A01 Broken Access Control**: sigue deny-by-default. El content script envía `tabUrl`; el background usa `originPatternFor(tabUrl)` para pedir permiso scoped (PR #15). Tests `host-permissions.spec.ts` bloquean adiciones.
+- **A03 Injection**: respuestas del usuario sanitizadas con `redactString` antes de salir del content script (`tests/security/redaction-on-output.spec.ts`).
+- **A04 Insecure Design**: state machine pura + tests tabulares exhaustivos; spies re-entrantes con refcount (`job-state.spec.ts`, `fetch-spy.spec.ts`).
+- **A05 Security Misconfiguration**: `tests/security/storage-no-sync.spec.ts` impide `storage.sync`.
+- **A07 Identification & Auth Failures**: sin permiso `cookies`; `credentials: 'include'` reutiliza la cookie de sesión existente.
+- **A08 Software & Data Integrity**: fingerprint validation previene aplicación de plan stale (`MQX-FILL-307`).
+- **A09 Logging Failures**: el contenido del usuario nunca se loguea, solo códigos.
+- **A10 SSRF**: `PageFetchClient` rechaza URLs fuera del `originPattern` antes de hacer la petición.
 
 ## Decisiones de origen
 

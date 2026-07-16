@@ -19,7 +19,7 @@ import {
 import { QuizDocumentSchema, type QuizDocument } from '~/domain/quiz-schema';
 import type { ZipResult } from '~/messaging/runtime-messages';
 
-const GENERATOR_VERSION = '0.2.0';
+const GENERATOR_VERSION = '0.3.0';
 
 export default defineBackground(() => {
   // eslint-disable-next-line no-console
