@@ -14,13 +14,42 @@
         font-size: 14px;
       }
       body {
-        min-width: 280px;
+        min-width: 320px;
         margin: 0;
         padding: 16px;
       }
       h1 {
         margin: 0 0 12px;
         font-size: 16px;
+      }
+      .tabs {
+        display: flex;
+        gap: 4px;
+        margin-bottom: 12px;
+        border-bottom: 1px solid rgba(127, 127, 127, 0.3);
+      }
+      .tab {
+        background: transparent;
+        border: none;
+        padding: 6px 10px;
+        font: inherit;
+        color: inherit;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+      }
+      .tab[aria-selected='true'] {
+        border-bottom-color: #2d6cdf;
+        font-weight: 600;
+      }
+      .tab[disabled] {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .tab-panel {
+        display: none;
+      }
+      .tab-panel[data-active='true'] {
+        display: block;
       }
       .status {
         margin: 8px 0 12px;
@@ -38,6 +67,20 @@
       }
       .status[data-state='ok'] {
         background: rgba(64, 200, 120, 0.18);
+      }
+      textarea {
+        display: block;
+        width: 100%;
+        min-height: 140px;
+        margin: 4px 0;
+        padding: 8px 10px;
+        border-radius: 6px;
+        border: 1px solid rgba(127, 127, 127, 0.4);
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        box-sizing: border-box;
+        resize: vertical;
       }
       button {
         display: block;
@@ -69,17 +112,56 @@
   </head>
   <body>
     <h1>Moodle Quiz Extractor</h1>
-    <div id="status" class="status" data-state="idle">
-      Cargando…
+    <div role="tablist" class="tabs">
+      <button class="tab" role="tab" id="tab-extract" aria-selected="true" data-tab="extract">
+        Extraer
+      </button>
+      <button class="tab" role="tab" id="tab-autofill" aria-selected="false" data-tab="autofill">
+        Autocompletar
+      </button>
+      <button class="tab" role="tab" id="tab-diagnostics" aria-selected="false" data-tab="diagnostics" disabled>
+        Diagnóstico
+      </button>
+      <button class="tab" role="tab" id="tab-settings" aria-selected="false" data-tab="settings" disabled>
+        Configuración
+      </button>
     </div>
-    <button id="extract-current" type="button">
-      Extraer página actual
-    </button>
-    <button id="download-zip" class="primary" type="button" disabled>
-      Descargar ZIP
-    </button>
+
+    <div class="status" id="status" data-state="idle">Cargando…</div>
+
+    <section class="tab-panel" id="panel-extract" data-tab="extract" data-active="true">
+      <button id="extract-current" type="button">Extraer página actual</button>
+      <button id="download-zip" class="primary" type="button" disabled>
+        Descargar ZIP
+      </button>
+    </section>
+
+    <section class="tab-panel" id="panel-autofill" data-tab="autofill">
+      <label for="answers-input" style="font-size: 12px; opacity: 0.8;">
+        Una respuesta por línea (1. a) / 2. a,c / 3. texto).
+      </label>
+      <textarea
+        id="answers-input"
+        placeholder="1. a)&#10;2. c)&#10;3. a,c&#10;4. Mi respuesta…"
+        spellcheck="false"
+      ></textarea>
+      <button id="autofill-validate" type="button">Validar respuestas</button>
+      <button id="autofill-apply" class="primary" type="button" disabled>
+        Aplicar respuestas
+      </button>
+      <button id="autofill-cancel" type="button" disabled>Cancelar</button>
+    </section>
+
+    <section class="tab-panel" id="panel-diagnostics" data-tab="diagnostics">
+      <p style="font-size: 12px; opacity: 0.7;">Diagnóstico (Fase 4).</p>
+    </section>
+
+    <section class="tab-panel" id="panel-settings" data-tab="settings">
+      <p style="font-size: 12px; opacity: 0.7;">Configuración (Fase 4).</p>
+    </section>
+
     <footer>
-      Local-first — sin envío a terceros. v0.2.0.
+      Local-first — sin envío a terceros. v0.3.0.
     </footer>
     <script type="module" src="../popup/main.ts"></script>
   </body>
