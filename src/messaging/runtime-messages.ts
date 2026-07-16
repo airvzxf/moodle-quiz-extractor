@@ -20,6 +20,15 @@ export type QuizDocumentMessage = z.infer<typeof QuizDocumentMessageSchema>;
 export const ZipRequestSchema = z.object({
   kind: z.literal('zipQuiz'),
   document: z.unknown(),
+  /**
+   * Live URL of the tab that originated the request (content script reads
+   * `window.location.href` and forwards it). The background uses this to
+   * request a host permission scoped to the real Moodle origin instead of
+   * falling back to `<all_urls>`. Optional for backward compatibility with
+   * older content scripts that don't yet forward it; missing values fall
+   * back to the previous behavior with a warning.
+   */
+  tabUrl: z.string().optional(),
 });
 export type ZipRequest = z.infer<typeof ZipRequestSchema>;
 
