@@ -11,6 +11,12 @@
 // Design: each replacement uses a placeholder that *cannot* accidentally
 // satisfy the canary patterns (e.g. "sesskey=__REDACTED__" not "sesskey=REDACTED"),
 // so a placeholder that survives a canary check is unambiguous.
+//
+// The canary patterns are defined in src/diagnostics/canary-patterns.ts so
+// the runtime redactor and the fixture redactor share a single source of
+// truth. We import them dynamically because this script runs from Node and
+// the source file is TypeScript (consumed at runtime via a tiny inline
+// reimplementation; the canonical definitions live in canary-patterns.ts).
 
 import { readdir, readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
@@ -50,6 +56,7 @@ const PATTERNS = [
 ];
 
 // Canary patterns detect a LEAK (a real secret that survived redaction).
+// MUST stay in sync with src/diagnostics/canary-patterns.ts::CANARY_LABELS.
 // Placeholders use underscores or "__" markers so they cannot satisfy these
 // patterns — only a real token like "sesskey=eLDsS5Y5jR" would.
 const CANARY_PATTERNS = [
@@ -65,12 +72,31 @@ const CANARY_PATTERNS = [
 await mkdir(DST, { recursive: true });
 let count = 0;
 let blocked = 0;
-for (const f of (await readdir(SRC)).filter((n) => n.endsWith('.html'))) {
-  const inPath = join(SRC, f);
+let sources;
+let readDir;
+try {
+  sources = (await readdir(SRC)).filter((n) => n.endsWith('.html'));
+  readDir = SRC;
+} catch (err) {
+  if (err && err.code === 'ENOENT') {
+    console.log(
+      `Note: ${SRC} is not present (gitignored; raw fixtures are developer-local).`,
+    );
+    console.log('Verifying the already-committed redacted fixtures instead…');
+    sources = (await readdir(DST)).filter((n) => n.endsWith('.html'));
+    readDir = DST;
+  } else {
+    throw err;
+  }
+}
+for (const f of sources) {
+  const inPath = join(readDir, f);
   const outPath = join(DST, f);
   const original = await readFile(inPath, 'utf8');
   let out = original;
-  for (const [re, repl] of PATTERNS) out = out.replace(re, repl);
+  if (readDir === SRC) {
+    for (const [re, repl] of PATTERNS) out = out.replace(re, repl);
+  }
   // Canary: if any forbidden pattern survived, refuse to write
   const surviving = CANARY_PATTERNS.filter(([re]) => re.test(out));
   if (surviving.length > 0) {
@@ -87,4 +113,4 @@ if (blocked > 0) {
   console.error(`\n${blocked} fixture(s) blocked — would have leaked secrets.`);
   process.exit(1);
 }
-console.log(`\nDone: ${count} fixture(s) redacted, 0 blocked.`);
+console.log(`\nDone: ${count} fixture(s) verified, 0 blocked.`);

@@ -156,4 +156,4 @@ Tipo de respuesta: Radio buttons.
 Puntaje de 10.00
 Sin responder aún
 
-> Generado por moodle-quiz-extractor v0.1.0 — 2026-07-15T00:00:00.000Z
+> Generado por moodle-quiz-extractor v0.2.0 — 2026-07-15T00:00:00.000Z

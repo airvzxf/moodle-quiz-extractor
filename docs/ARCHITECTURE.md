@@ -105,12 +105,37 @@ moodle-quiz-extractor/
 
 | Fase | Alcance | Estado |
 |---|---|---|
-| 0 | Higiene, privacidad, scaffold WXT MV3, correcciones T15 #3-#5 | **PR #1 (esta)** |
-| 1 | Extracción monopágina + Markdown literal al `prompt.md` | PR #2 + #3 (esta sesión) |
-| 2 | Assets autenticados + ZIP | futuro |
+| 0 | Higiene, privacidad, scaffold WXT MV3, correcciones T15 #3-#5 | merged (PR #2) |
+| 1 | Extracción monopágina + Markdown literal al `prompt.md` | merged (PR #4 + #6) |
+| 2 | Assets autenticados + ZIP (AssetPlanner, AssetFetchClient, ZipPackager, DownloadService, redactor, manifest, popup, CI) | PR #N (este PR) |
 | 3 | Paginación + autollenado seguro | futuro |
 | 4 | Diagnóstico two-tier, hardening, release Firefox | futuro |
 | 5 | Native Messaging/CLI, Android, Chromium | stretch |
+
+## Fase 2 — cambios principales
+
+| Módulo | Rol | Tests |
+|---|---|---|
+| `src/diagnostics/canary-patterns.ts` | Canarios compartidos entre `tools/redact-fixture.mjs` y `src/diagnostics/redactor.ts` | 10 |
+| `src/diagnostics/redactor.ts` | Doble redacción runtime (MQX-PRIV-401) | 14 |
+| `src/export/asset-planner.ts` | Planificador puro (dedupe, MIME, magic bytes, naming estable) | 19 |
+| `src/export/manifest.ts` + `src/domain/manifest-schema.ts` | Sidecar `manifest.json` con provenancia + asset list + warnings | cubiertos por integration |
+| `src/export/zip.ts` | `fflate.zipSync`, redactor aplicado a markdown y JSON, escape de `..`/`/` | 7 |
+| `src/background/asset-fetch-client.ts` | GET autenticado (cookies de sesión), MIME allowlist, magic bytes, timeout, redirect-to-login detection, concurrency cap | cubierto por integration |
+| `src/background/download-service.ts` | `browser.downloads.download` + revoke `blob:` URL | cubierto por integration |
+| `src/background/zip-orchestrator.ts` | Pipeline end-to-end | cubierto por integration |
+| `src/permissions/asset-permissions.ts` | `permissions.contains` + `permissions.request` opt-in | cubierto por unit |
+| `src/messaging/runtime-messages.ts` | Contrato Zod entre content / background / popup | cubierto por integration |
+| `src/entrypoints/popup.{html,ts}` | UI mínima accionable | manual (no testable en jsdom) |
+| `tests/integration/zip-pipeline.spec.ts` | Pipeline end-to-end sobre dsop-02 con stub fetch + doble redacción | 3 |
+| `.github/workflows/ci.yml` | CI en PR (compile + test + build:firefox + lint:ext + redact) | workflow |
+
+Permisos runtime: la Fase 2 mantiene la política deny-by-default. El
+manifest MV3 declara `host_permissions: ['*://*/*mod/quiz/attempt.php*']`
+y `optional_host_permissions: ['<all_urls>']`. La descarga autenticada de
+`pluginfile.php` se concede **sólo cuando el usuario pulsa "Descargar ZIP"
+en el popup**, vía `browser.permissions.request({ origins: [<pageOrigin>]/* })`,
+no se concede `<all_urls>` globalmente.
 
 ## Decisiones de origen
 

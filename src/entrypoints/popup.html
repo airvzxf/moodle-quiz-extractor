@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>moodle-quiz-extractor</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family:
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          sans-serif;
+        font-size: 14px;
+      }
+      body {
+        min-width: 280px;
+        margin: 0;
+        padding: 16px;
+      }
+      h1 {
+        margin: 0 0 12px;
+        font-size: 16px;
+      }
+      .status {
+        margin: 8px 0 12px;
+        padding: 8px 10px;
+        border-radius: 6px;
+        background: rgba(127, 127, 127, 0.12);
+        font-size: 12px;
+        line-height: 1.4;
+      }
+      .status[data-state='busy'] {
+        background: rgba(64, 160, 255, 0.18);
+      }
+      .status[data-state='error'] {
+        background: rgba(220, 64, 64, 0.18);
+      }
+      .status[data-state='ok'] {
+        background: rgba(64, 200, 120, 0.18);
+      }
+      button {
+        display: block;
+        width: 100%;
+        margin: 4px 0;
+        padding: 8px 10px;
+        border-radius: 6px;
+        border: 1px solid rgba(127, 127, 127, 0.4);
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+        font: inherit;
+      }
+      button.primary {
+        background: #2d6cdf;
+        color: white;
+        border-color: #2d6cdf;
+      }
+      button[disabled] {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      footer {
+        margin-top: 12px;
+        font-size: 11px;
+        opacity: 0.7;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Moodle Quiz Extractor</h1>
+    <div id="status" class="status" data-state="idle">
+      Cargando…
+    </div>
+    <button id="extract-current" type="button">
+      Extraer página actual
+    </button>
+    <button id="download-zip" class="primary" type="button" disabled>
+      Descargar ZIP
+    </button>
+    <footer>
+      Local-first — sin envío a terceros. v0.2.0.
+    </footer>
+    <script type="module" src="../popup/main.ts"></script>
+  </body>
+</html>

@@ -161,15 +161,17 @@ Política de datos: `data_collection_permissions.required: ["none"]`.
 
 ## Estado del proyecto
 
-Esta es la **Fase 0 + Fase 1** del roadmap derivado de la iteración `iter-1` de la mezcla de agentes. Ver `docs/ARCHITECTURE.md` §Fases para el plan completo.
+Esta es la **Fase 0 + Fase 1 + Fase 2** del roadmap derivado de la iteración `iter-1` de la mezcla de agentes. Ver `docs/ARCHITECTURE.md` §Fases para el plan completo.
 
 | PR | Alcance |
 |---|---|
-| #1 (merged) | Scaffold WXT MV3 + correcciones obligatorias a T15 |
-| #2 (merged) | Parser radio/checkbox + detector + content script + no-submit invariant |
-| #3 (este PR) | Renderer Markdown literal al `prompt.md` + golden files para las 4 fixtures + 8 tests de integración |
+| #2 (merged) | Scaffold WXT MV3 + correcciones obligatorias a T15 |
+| #4 (merged) | Parser radio/checkbox + detector + content script + no-submit invariant |
+| #6 (merged) | Renderer Markdown literal al `prompt.md` + golden files para las 4 fixtures + 8 tests de integración |
+| #8 (merged) | Manifest fix: elimina `gecko_android.id` redundante |
+| #N (este PR) | **Fase 2**: AssetPlanner + ZipPackager + AssetFetchClient + DownloadService + DiagnosticRedactor + popup mínima + CI |
 
-Tests: **36/36** verdes (11 dom-adapter, 9 parsers, 4 no-submit-spy, 8 markdown/extract, 4 Zod validation). `web-ext lint`: 0 errors / 0 notices / 0 warnings.
+Tests: **85/85** verdes (Fase 0 + 1 + 2). `web-ext lint`: 0 errors / 0 notices / 0 warnings. La validación corre en CI (GitHub Actions) en cada PR.
 
 ## Licencia
 

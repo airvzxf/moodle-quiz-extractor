@@ -35,17 +35,21 @@ export interface RenderOptions {
    *  the redacted origin hash. Off by default (literal contract has no
    *  comment). */
   diagnosticsComment?: boolean;
+  /** Generator version line emitted in the footer. Defaults to the
+   *  current `package.json` version. */
+  generatorVersion?: string;
 }
 
-const VERSION = '0.1.0';
+const DEFAULT_VERSION = '0.2.0';
 
 export function renderQuiz(doc: QuizDocument, opts: RenderOptions = {}): string {
   const exportedAt = (opts.exportedAt ?? new Date()).toISOString();
+  const version = opts.generatorVersion ?? DEFAULT_VERSION;
   const head = renderHead(doc);
   const meta = renderInitialMetadata(doc);
   const sep = '\n\n---\n\n';
   const body = doc.questions.map(renderQuestion).join(sep);
-  const foot = `\n\n> Generado por moodle-quiz-extractor v${VERSION} — ${exportedAt}\n`;
+  const foot = `\n\n> Generado por moodle-quiz-extractor v${version} — ${exportedAt}\n`;
   return head + '\n\n' + meta + sep + body + foot;
 }
 
@@ -86,12 +90,21 @@ function renderQuestion(q: Question): string {
 
 function renderImages(q: Question): string {
   // Each prompt image becomes a literal `[IMAGEN](./quiz/<filename>)` line,
-  // exactly as the user's example shows. We don't yet have a real asset
-  // (that's Phase 2 / PR #4); until then we omit this block entirely.
+  // exactly as the user's example shows. The orchestrator fills
+  // `localPath` from the planner (e.g. "quiz/q2-7064dd3c.png"); when it
+  // is empty we fall back to the URL basename so the markdown is still
+  // useful for unsupported layouts.
   if (q.assets.length === 0) return '';
   return q.assets
-    .map((a) => `[IMAGEN](./quiz/${a.localPath || basename(a.sourceUrl)})`)
+    .map((a) => `[IMAGEN](./quiz/${strippedLocalPath(a.localPath || basename(a.sourceUrl))})`)
     .join('\n') + '\n';
+}
+
+/** `localPath` already includes the `quiz/` prefix (planner convention);
+ *  the renderer prepends `./quiz/`, so we drop the leading `quiz/` to
+ *  avoid doubling it. */
+function strippedLocalPath(localPath: string): string {
+  return localPath.startsWith('quiz/') ? localPath.slice('quiz/'.length) : localPath;
 }
 
 function basename(url: string): string {

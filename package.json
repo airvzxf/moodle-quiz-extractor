@@ -2,7 +2,7 @@
   "name": "moodle-quiz-extractor",
   "description": "Extensión Firefox para exportar cuestionarios de Moodle a Markdown local con imágenes y autollenado seguro.",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "wxt",
@@ -14,6 +14,7 @@
     "compile": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:cov": "vitest run --coverage",
     "lint:ext": "web-ext lint --source-dir .output/firefox-mv3",
     "redact": "node tools/redact-fixture.mjs",
     "prepare": "wxt prepare"
