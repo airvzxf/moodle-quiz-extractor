@@ -14,7 +14,7 @@
 # desde la raíz del repo
 pnpm install --frozen-lockfile
 pnpm prepare
-pnpm test             # debe imprimir 306/306 verde
+pnpm test             # debe imprimir 321/321 verde
 pnpm compile         # type-check
 pnpm build:firefox    # produce .output/firefox-mv3/
 ```
@@ -496,9 +496,11 @@ un secreto sobrevivió — repórtalo.
 
 Si todo lo anterior pasa:
 
-- **Fase 4** (próxima) cubrirá: diagnóstico two-tier (safe report por
-  defecto, fixture opt-in con preview), matriz OWASP completa en
-  `docs/SECURITY.md`, threat model, y release Firefox AMO.
+- **Fase 4** cubrirá: diagnóstico two-tier (safe report por defecto,
+  fixture opt-in con preview), hardening OWASP A01–A10 + threat model,
+  iconos y release Firefox AMO.
+- **Fase 5** diferida explícitamente: Native Messaging, Android, Chromium,
+  pestaña Configuración.
 - Si encuentras un bug, abre un issue con el resultado del smoke
   (qué acción, qué esperabas, qué obtuviste) y la URL del intento
   (con `sesskey`/`attempt` redactados a `__REDACTED__`).

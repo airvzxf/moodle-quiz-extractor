@@ -1,9 +1,8 @@
 # Seguridad — moodle-quiz-extractor
 
-> Estado: **inicial (Fase 3)**. La matriz OWASP completa y la threat
-> model están planificadas para **Fase 4** (diagnóstico two-tier +
-> hardening + release Firefox). Este documento cubre las decisiones y
-> mitigaciones concretas que están en `main` a día de hoy.
+> Estado: **Fase 4 (en curso)**. Cubre las decisiones y mitigaciones
+> concretas que están en `main`. La matriz OWASP completa (A01–A10) y
+> el threat model se completan en la PR 4.3 de Fase 4.
 
 ## Principios
 
