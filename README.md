@@ -166,7 +166,7 @@ Fases 0 + 1 + 2 + 3 merged. Ver `docs/ARCHITECTURE.md` §Fases para el plan comp
 | #28 (merged) | Fase 3 (6/6): popup 4-tab + flujo autofill completo + tests security |
 | este PR | Documentación Fase 3 (ARCHITECTURE + README + SECURITY inicial) |
 
-Tests: **306/306** verdes (Fase 0 + 1 + 2 + 3). `web-ext lint`: 0 errors / 0 notices / 0 warnings (los 2 warnings `DANGEROUS_EVAL` son de las dependencias Turndown/DOMPurify, preexistentes en `main`). La validación corre en CI (GitHub Actions) en cada PR.
+Tests: **321/321** verdes (Fase 0 + 1 + 2 + 3). `web-ext lint`: 0 errors / 0 notices / 2 warnings (los 2 warnings `DANGEROUS_EVAL` son de las dependencias Turndown/DOMPurify bundleadas, preexistentes en `main`). La validación corre en CI (GitHub Actions) en cada PR.
 
 ## Licencia
 

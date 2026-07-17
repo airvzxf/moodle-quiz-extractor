@@ -109,8 +109,8 @@ moodle-quiz-extractor/
 | 1 | Extracción monopágina + Markdown literal al `prompt.md` | merged (PR #4 + #6) |
 | 2 | Assets autenticados + ZIP (AssetPlanner, AssetFetchClient, ZipPackager, DownloadService, redactor, manifest, popup, CI) | merged (PR #10 + #12 + #8) |
 | 3 | Paginación + autollenado seguro | merged (PR #15–#22) |
-| 4 | Diagnóstico two-tier, hardening, release Firefox | futuro |
-| 5 | Native Messaging/CLI, Android, Chromium | stretch |
+| 4 | Diagnóstico two-tier, hardening, release Firefox | en curso (PRs incrementales) |
+| 5 | Native Messaging/CLI, Android, Chromium, Configuración | stretch |
 
 ## Fase 2 — cambios principales
 
