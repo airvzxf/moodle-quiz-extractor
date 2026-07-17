@@ -246,3 +246,17 @@ export const DownloadFixtureResultSchema = z.object({
   error: z.string().optional(),
 });
 export type DownloadFixtureResult = z.infer<typeof DownloadFixtureResultSchema>;
+
+export const GetFixtureSnapshotRequestSchema = z.object({
+  kind: z.literal('getFixtureSnapshot'),
+  tabId: z.number().int().nonnegative(),
+});
+export type GetFixtureSnapshotRequest = z.infer<typeof GetFixtureSnapshotRequestSchema>;
+
+export const FixtureSnapshotResultSchema = z.object({
+  kind: z.literal('fixtureSnapshotResult'),
+  ok: z.boolean(),
+  html: z.string().optional(),
+  error: z.string().optional(),
+});
+export type FixtureSnapshotResult = z.infer<typeof FixtureSnapshotResultSchema>;

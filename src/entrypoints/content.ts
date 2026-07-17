@@ -45,6 +45,9 @@ import type { DiagnosticsEventInput } from '~/diagnostics/diagnostics-types';
 import {
   CollectDiagnosticsRequestSchema,
   type CollectDiagnosticsRequest,
+  GetFixtureSnapshotRequestSchema,
+  FixtureSnapshotResultSchema,
+  type FixtureSnapshotResult,
   SafeReportResultSchema,
   type SafeReportResult,
 } from '~/messaging/runtime-messages';
@@ -179,6 +182,29 @@ export default defineContentScript({
               };
               sendResponse(SafeReportResultSchema.parse(result));
             });
+          return true;
+        }
+        const fixture = GetFixtureSnapshotRequestSchema.safeParse(raw);
+        if (fixture.success) {
+          try {
+            const html =
+              document.documentElement && document.documentElement.outerHTML
+                ? document.documentElement.outerHTML
+                : '';
+            const result: FixtureSnapshotResult = FixtureSnapshotResultSchema.parse({
+              kind: 'fixtureSnapshotResult',
+              ok: true,
+              html,
+            });
+            sendResponse(result);
+          } catch (err) {
+            const result: FixtureSnapshotResult = FixtureSnapshotResultSchema.parse({
+              kind: 'fixtureSnapshotResult',
+              ok: false,
+              error: err instanceof Error ? err.message : 'snapshot failed',
+            });
+            sendResponse(result);
+          }
           return true;
         }
         return false;

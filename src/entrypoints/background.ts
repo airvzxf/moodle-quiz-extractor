@@ -297,10 +297,61 @@ export default defineBackground(() => {
         return true;
       }
 
+      if (kind === 'getFixtureSnapshot') {
+        const senderTabId = sender?.tab?.id ?? 0;
+        if (senderTabId <= 0) {
+          sendResponse({ ok: false, error: 'no sender tab' });
+          return true;
+        }
+        void handleGetFixtureSnapshot(senderTabId, sendResponse);
+        return true;
+      }
+
       return false;
     },
   );
 });
+
+async function captureRawHtml(tabId: number): Promise<string | null> {
+  // The background asks the content script for the live document HTML
+  // and uses it as the source for the tier-2 fixture pipeline. We
+  // forward through the content script's onMessage listener so the
+  // sender.tab is always the originating tab (no spoofable `tabId`).
+  try {
+    const res = (await browser.tabs?.sendMessage(tabId, {
+      kind: 'getFixtureSnapshot',
+      tabId,
+    })) as { ok: boolean; html?: string; error?: string } | undefined;
+    if (!res || !res.ok || typeof res.html !== 'string') {
+      return null;
+    }
+    return res.html;
+  } catch {
+    return null;
+  }
+}
+
+async function handleGetFixtureSnapshot(
+  tabId: number,
+  sendResponse: (response: unknown) => void,
+): Promise<void> {
+  try {
+    const res = (await browser.tabs?.sendMessage(tabId, {
+      kind: 'getFixtureSnapshot',
+      tabId,
+    })) as { ok: boolean; html?: string; error?: string } | undefined;
+    if (!res || !res.ok || typeof res.html !== 'string') {
+      sendResponse({ ok: false, error: res?.error ?? 'empty snapshot' });
+      return;
+    }
+    sendResponse({ ok: true, html: res.html });
+  } catch (err) {
+    sendResponse({
+      ok: false,
+      error: err instanceof Error ? err.message : 'snapshot failed',
+    });
+  }
+}
 
 async function buildReportForTab(tabId: number): Promise<SafeReportResult> {
   const store = getDiagnosticsStore();
@@ -332,16 +383,6 @@ async function buildReportForTab(tabId: number): Promise<SafeReportResult> {
     ok: true,
     report,
   });
-}
-
-async function captureRawHtml(tabId: number): Promise<string | null> {
-  // The content script must answer with a sanitized HTML snapshot. We
-  // ask for it via a private message kind that only the popup wires.
-  // For now we keep the request in the background so we can later
-  // wire the content-script side; the preview pipeline is fully
-  // exercised by unit tests via buildFixtureBundle.
-  void tabId;
-  return null;
 }
 
 async function previewFixtureForTab(tabId: number): Promise<PreviewFixtureResult> {
