@@ -20,8 +20,13 @@ import { QuizDocumentSchema, type QuizDocument } from '~/domain/quiz-schema';
 import {
   ClearPopupSessionRequestSchema,
   type ClearPopupSessionResult,
+  CollectDiagnosticsRequestSchema,
   LoadPopupSessionRequestSchema,
   type LoadPopupSessionResult,
+  LogDiagnosticsEventRequestSchema,
+  type LogDiagnosticsEventResult,
+  SafeReportResultSchema,
+  type SafeReportResult,
   SavePopupSessionRequestSchema,
   type SavePopupSessionRequest,
   type SavePopupSessionResult,
@@ -35,6 +40,8 @@ import {
   POPUP_SESSION_SCHEMA_VERSION,
   type PopupSessionState,
 } from '~/background/popup-session-store';
+import { DiagnosticsStore } from '~/background/diagnostics-store';
+import { buildSafeReport } from '~/diagnostics/safe-report';
 
 const GENERATOR_VERSION = '0.3.0';
 
@@ -48,12 +55,26 @@ function getPopupSessionStore(): PopupSessionStore {
   return popupSessionStore;
 }
 
+let diagnosticsStore: DiagnosticsStore | null = null;
+function getDiagnosticsStore(): DiagnosticsStore {
+  if (!diagnosticsStore) {
+    diagnosticsStore = new DiagnosticsStore(new BrowserStorageSessionAdapter());
+  }
+  return diagnosticsStore;
+}
+
 export default defineBackground(() => {
   // eslint-disable-next-line no-console
   console.log('[moodle-quiz-extractor] background started');
 
+  // Tab lifecycle: drop the diagnostics ring when a tab closes so we
+  // never leak state across sessions.
+  browser.tabs?.onRemoved?.addListener?.((tabId: number) => {
+    void getDiagnosticsStore().delete(tabId).catch(() => undefined);
+  });
+
   browser.runtime.onMessage.addListener(
-    (raw: unknown, _sender, sendResponse: (response: unknown) => void) => {
+    (raw: unknown, sender, sendResponse: (response: unknown) => void) => {
       if (!raw || typeof (raw as { kind?: string }).kind !== 'string') return false;
 
       const kind = (raw as { kind: string }).kind;
@@ -155,10 +176,100 @@ export default defineBackground(() => {
         return true;
       }
 
+      if (kind === 'logDiagnosticsEvent') {
+        const req = LogDiagnosticsEventRequestSchema.safeParse(raw);
+        if (!req.success) {
+          const result: LogDiagnosticsEventResult = {
+            kind: 'logDiagnosticsEventResult',
+            ok: false,
+            error: 'malformed event',
+          };
+          sendResponse(result);
+          return false;
+        }
+        // Stamp ts from the background clock and derive tabId from
+        // sender.tab.id. NEVER trust the tabId the content script sent.
+        const senderTabId = sender?.tab?.id ?? req.data.tabId;
+        const ts = Date.now();
+        void getDiagnosticsStore()
+          .append(senderTabId, req.data.input, ts)
+          .then(() => {
+            const result: LogDiagnosticsEventResult = {
+              kind: 'logDiagnosticsEventResult',
+              ok: true,
+            };
+            sendResponse(result);
+          })
+          .catch((err: Error) => {
+            const result: LogDiagnosticsEventResult = {
+              kind: 'logDiagnosticsEventResult',
+              ok: false,
+              error: err.message,
+            };
+            sendResponse(result);
+          });
+        return true;
+      }
+
+      if (kind === 'collectDiagnostics') {
+        const req = CollectDiagnosticsRequestSchema.safeParse(raw);
+        if (!req.success) {
+          const result: SafeReportResult = SafeReportResultSchema.parse({
+            kind: 'safeReportResult',
+            ok: false,
+            error: 'malformed request',
+          });
+          sendResponse(result);
+          return false;
+        }
+        const senderTabId = sender?.tab?.id ?? req.data.tabId;
+        void buildReportForTab(senderTabId).then(sendResponse).catch((err: Error) => {
+          const result: SafeReportResult = SafeReportResultSchema.parse({
+            kind: 'safeReportResult',
+            ok: false,
+            error: err.message,
+          });
+          sendResponse(result);
+        });
+        return true;
+      }
+
       return false;
     },
   );
 });
+
+async function buildReportForTab(tabId: number): Promise<SafeReportResult> {
+  const store = getDiagnosticsStore();
+  const ring = await store.load(tabId);
+  if (!ring) {
+    return SafeReportResultSchema.parse({
+      kind: 'safeReportResult',
+      ok: true,
+      report: {
+        schemaVersion: '1.4.0',
+        generator: 'moodle-quiz-extractor',
+        generatorVersion: GENERATOR_VERSION,
+        manifestVersion: 3,
+        exportedAt: new Date().toISOString(),
+        ring: { capacity: 200, length: 0, dropped: 0 },
+        counts: { events: 0, byStage: {}, byCode: {} },
+        recentCodes: [],
+        truncated: false,
+      },
+    });
+  }
+  const report = buildSafeReport({
+    ring,
+    generatorVersion: GENERATOR_VERSION,
+    manifestVersion: 3,
+  });
+  return SafeReportResultSchema.parse({
+    kind: 'safeReportResult',
+    ok: true,
+    report,
+  });
+}
 
 async function handleSavePopupSession(
   req: SavePopupSessionRequest,

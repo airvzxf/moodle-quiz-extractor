@@ -27,10 +27,12 @@ import type {
   LoadPopupSessionResult,
   PrepareAutofillResult,
   QuizDocumentMessage,
+  SafeReportResult,
   SavePopupSessionRequest,
   SavePopupSessionResult,
   ZipResult,
 } from '~/messaging/runtime-messages';
+import type { SafeReport } from '~/diagnostics/diagnostics-types';
 
 interface RuntimeApi {
   tabs?: {
@@ -509,10 +511,62 @@ function wirePersistenceLifecycle(): void {
   });
 }
 
+function wireDiagnostics(): void {
+  const btn = document.getElementById('diag-view') as HTMLButtonElement | null;
+  const out = document.getElementById('diag-output') as HTMLDivElement | null;
+  if (!btn || !out) return;
+  btn.addEventListener('click', async () => {
+    const tab = await getActiveTab();
+    if (tab === null) {
+      out.hidden = false;
+      out.textContent = 'No hay pestaña activa.';
+      out.dataset.state = 'error';
+      return;
+    }
+    out.hidden = false;
+    out.dataset.state = 'busy';
+    out.textContent = 'Recopilando reporte seguro…';
+    btn.disabled = true;
+    try {
+      const res = await sendToContent<SafeReportResult>(tab.id, {
+        kind: 'collectDiagnostics',
+        tabId: tab.id,
+      });
+      if (!res || res.kind !== 'safeReportResult' || !res.ok || !res.report) {
+        throw new Error(res?.error ?? 'reporte no disponible');
+      }
+      out.dataset.state = 'ok';
+      out.textContent = renderSafeReportText(res.report);
+    } catch (err) {
+      out.dataset.state = 'error';
+      out.textContent = `Error: ${(err as Error).message}`;
+    } finally {
+      btn.disabled = false;
+    }
+  });
+}
+
+function renderSafeReportText(report: SafeReport): string {
+  const top = report.recentCodes
+    .slice(0, 5)
+    .map((c: { code: string; stage: string; count: number }) => `${c.code} (${c.stage}) x${c.count}`)
+    .join(', ');
+  const truncatedNote = report.truncated
+    ? ' Algunas entradas fueron descartadas por desbordamiento del anillo.'
+    : '';
+  return [
+    `Esquema ${report.schemaVersion} — ${report.generator}@${report.generatorVersion}`,
+    `Manifiesto MV${report.manifestVersion} — ${report.ring.length}/${report.ring.capacity} eventos${truncatedNote}`,
+    `Total eventos: ${report.counts.events}`,
+    top ? `Más frecuentes: ${top}` : 'Sin eventos aún.',
+  ].join('\n');
+}
+
 function wire(): void {
   wireTabs();
   wireExtract();
   wireAutofill();
+  wireDiagnostics();
   wirePersistenceLifecycle();
   setStatus('Pulsa "Extraer página actual" para detectar el cuestionario.', 'idle');
   // Hydrate silently. Failures (no tab, no storage, malformed payload)
