@@ -7,10 +7,39 @@ import { defineConfig } from 'wxt';
 export default defineConfig({
   srcDir: './src',
   outDir: '.output',
+  // The source ZIP must NOT contain the developer's raw HTML fixtures
+  // (resources/) which carry real sesskey / MoodleSession values. The
+  // `tests/fixtures/redacted/` copies are git-tracked and safe; we
+  // exclude only the unredacted source.
+  zip: {
+    excludeSources: [
+      'resources',
+      'resources/**',
+      'coverage',
+      '**/*.map',
+      'debug-bundles',
+    ],
+  },
   manifest: () => ({
     name: 'Moodle Quiz Extractor',
     description:
       'Exporta cuestionarios de Moodle a Markdown local con imágenes y autollenado seguro.',
+    icons: {
+      '16': 'icon/16.png',
+      '32': 'icon/32.png',
+      '48': 'icon/48.png',
+      '64': 'icon/64.png',
+      '128': 'icon/128.png',
+    },
+    action: {
+      default_title: 'Moodle Quiz Extractor',
+      default_popup: 'popup.html',
+      default_icon: {
+        '16': 'icon/16.png',
+        '32': 'icon/32.png',
+        '48': 'icon/48.png',
+      },
+    },
     permissions: ['activeTab', 'storage', 'scripting', 'downloads'],
     host_permissions: ['*://*/*mod/quiz/attempt.php*'],
     optional_host_permissions: ['<all_urls>'],

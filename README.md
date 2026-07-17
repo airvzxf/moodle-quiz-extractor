@@ -147,7 +147,8 @@ Política de datos: `data_collection_permissions.required: ["none"]`.
 
 ## Estado del proyecto
 
-Fases 0 + 1 + 2 + 3 merged. Ver `docs/ARCHITECTURE.md` §Fases para el plan completo.
+Fases 0 + 1 + 2 + 3 + 4 merged. **Versión actual: 0.4.0.** Lista
+para enviar a Mozilla AMO (ver `docs/AMO-RELEASE.md`).
 
 | PR | Alcance |
 |---|---|
@@ -164,9 +165,22 @@ Fases 0 + 1 + 2 + 3 merged. Ver `docs/ARCHITECTURE.md` §Fases para el plan comp
 | #24 (merged) | Fase 3 (4/6): `fetch-spy` para `processattempt.php` / `finishattempt` |
 | #26 (merged) | Fase 3 (5/6): `ControlApplicator` + `PaginationController` |
 | #28 (merged) | Fase 3 (6/6): popup 4-tab + flujo autofill completo + tests security |
-| este PR | Documentación Fase 3 (ARCHITECTURE + README + SECURITY inicial) |
+| #30 (merged) | Documentación Fase 3 (ARCHITECTURE + README + SECURITY inicial) |
+| #32–#37 (merged) | Fixes post-3: tabUrl scoped, Cancel tras validar, persistencia popup, keep-state, no redactar JSON propio |
+| #38 (merged) | Preflight Fase 4: sincroniza docs stale, cierra issues viejos |
+| #40 (merged) | Fase 4.1: diagnóstico seguro (logger + safe report + Zod) |
+| #42 (merged) | Fase 4.2: fixture opt-in HTML (sanitizador + redactor + bundle fflate) |
+| #44 (merged) | Fase 4.3: hardening OWASP A01-A10 + threat model STRIDE |
+| este PR | Fase 4.4: iconos MQX + zip MV3 + excludeSources + workflow release 0.4.0 |
 
-Tests: **306/306** verdes (Fase 0 + 1 + 2 + 3). `web-ext lint`: 0 errors / 0 notices / 0 warnings (los 2 warnings `DANGEROUS_EVAL` son de las dependencias Turndown/DOMPurify, preexistentes en `main`). La validación corre en CI (GitHub Actions) en cada PR.
+Tests: **391/391** verdes (Fase 0 + 1 + 2 + 3 + 4). `web-ext lint`:
+0 errors / 0 notices / 2 warnings (los warnings `DANGEROUS_EVAL`
+provienen del bundle de Zod 4.4.3, preexistentes en `main`).
+Validación corre en CI (GitHub Actions) en cada PR. El release
+workflow corre al pushear tag `v*`.
+
+Política de datos: `data_collection_permissions.required: ["none"]`.
+Sin cookies, sin backend, sin telemetría, sin `<all_urls>` por defecto.
 
 ## Licencia
 

@@ -169,3 +169,94 @@ export const ClearPopupSessionResultSchema = z.object({
   ok: z.boolean(),
 });
 export type ClearPopupSessionResult = z.infer<typeof ClearPopupSessionResultSchema>;
+
+// ---------------------------------------------------------------------------
+// Fase 4.1 — diagnostic two-tier. The content script pushes a closed
+// schema (no strings free, no timestamp, no tabId). The background
+// stamps `ts` and derives `tabId` from `sender.tab`. The popup asks for
+// the safe report and the background responds with a redacted snapshot.
+// ---------------------------------------------------------------------------
+
+import {
+  DiagnosticsEventInputSchema,
+  SafeReportSchema,
+} from '~/diagnostics/diagnostics-types';
+
+export const LogDiagnosticsEventRequestSchema = z.object({
+  kind: z.literal('logDiagnosticsEvent'),
+  tabId: z.number().int().nonnegative(),
+  input: DiagnosticsEventInputSchema,
+});
+export type LogDiagnosticsEventRequest = z.infer<typeof LogDiagnosticsEventRequestSchema>;
+
+export const LogDiagnosticsEventResultSchema = z.object({
+  kind: z.literal('logDiagnosticsEventResult'),
+  ok: z.boolean(),
+  error: z.string().optional(),
+});
+export type LogDiagnosticsEventResult = z.infer<typeof LogDiagnosticsEventResultSchema>;
+
+export const CollectDiagnosticsRequestSchema = z.object({
+  kind: z.literal('collectDiagnostics'),
+  tabId: z.number().int().nonnegative(),
+});
+export type CollectDiagnosticsRequest = z.infer<typeof CollectDiagnosticsRequestSchema>;
+
+export const SafeReportResultSchema = z.object({
+  kind: z.literal('safeReportResult'),
+  ok: z.boolean(),
+  report: SafeReportSchema.optional(),
+  error: z.string().optional(),
+});
+export type SafeReportResult = z.infer<typeof SafeReportResultSchema>;
+
+export const PreviewFixtureRequestSchema = z.object({
+  kind: z.literal('previewFixture'),
+  tabId: z.number().int().nonnegative(),
+});
+export type PreviewFixtureRequest = z.infer<typeof PreviewFixtureRequestSchema>;
+
+export const PreviewFixtureResultSchema = z.object({
+  kind: z.literal('previewFixtureResult'),
+  ok: z.boolean(),
+  preview: z
+    .object({
+      bytes: z.number().int().nonnegative(),
+      canaryHits: z.array(z.string()),
+      entryCount: z.number().int().nonnegative(),
+    })
+    .optional(),
+  error: z.string().optional(),
+});
+export type PreviewFixtureResult = z.infer<typeof PreviewFixtureResultSchema>;
+
+export const DownloadFixtureRequestSchema = z.object({
+  kind: z.literal('downloadFixture'),
+  tabId: z.number().int().nonnegative(),
+  ackCanaryHits: z.array(z.string()),
+});
+export type DownloadFixtureRequest = z.infer<typeof DownloadFixtureRequestSchema>;
+
+export const DownloadFixtureResultSchema = z.object({
+  kind: z.literal('downloadFixtureResult'),
+  ok: z.boolean(),
+  filename: z.string().optional(),
+  bytes: z.number().int().nonnegative().optional(),
+  refusedReason: z.enum(['canary-detected', 'permission-denied', 'unavailable']).optional(),
+  error: z.string().optional(),
+});
+export type DownloadFixtureResult = z.infer<typeof DownloadFixtureResultSchema>;
+
+export const GetFixtureSnapshotRequestSchema = z.object({
+  kind: z.literal('getFixtureSnapshot'),
+  tabId: z.number().int().nonnegative(),
+});
+export type GetFixtureSnapshotRequest = z.infer<typeof GetFixtureSnapshotRequestSchema>;
+
+export const FixtureSnapshotResultSchema = z.object({
+  kind: z.literal('fixtureSnapshotResult'),
+  ok: z.boolean(),
+  html: z.string().optional(),
+  error: z.string().optional(),
+});
+export type FixtureSnapshotResult = z.infer<typeof FixtureSnapshotResultSchema>;

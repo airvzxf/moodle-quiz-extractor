@@ -40,6 +40,18 @@ import {
   type QuizDocumentMessage,
 } from '~/messaging/runtime-messages';
 import { redactString } from '~/diagnostics/redactor';
+import { MQX } from '~/diagnostics/codes';
+import type { DiagnosticsEventInput } from '~/diagnostics/diagnostics-types';
+import {
+  CollectDiagnosticsRequestSchema,
+  type CollectDiagnosticsRequest,
+  GetFixtureSnapshotRequestSchema,
+  FixtureSnapshotResultSchema,
+  type FixtureSnapshotResult,
+  SafeReportResultSchema,
+  type SafeReportResult,
+} from '~/messaging/runtime-messages';
+import type { SafeReport } from '~/diagnostics/diagnostics-types';
 
 interface AutofillJobState {
   plan: import('~/autofill/apply-plan').ApplyPlan;
@@ -51,6 +63,28 @@ interface AutofillJobState {
 
 const activeJobs = new Map<string, AutofillJobState>();
 
+function emit(
+  input: DiagnosticsEventInput,
+  senderTabId: number | undefined,
+): void {
+  // The background SW is the only consumer of these events. It stamps
+  // `ts` and derives `tabId` from `sender.tab`, so the content script
+  // must NOT set either field. Sending from the content script means
+  // `sender.tab.id` is always present in MV3, but defensively fall
+  // back to `0` if not.
+  if (typeof browser === 'undefined' || !browser.runtime?.sendMessage) return;
+  void browser.runtime
+    .sendMessage({
+      kind: 'logDiagnosticsEvent',
+      tabId: senderTabId ?? 0,
+      input,
+    })
+    .catch(() => {
+      // Fire-and-forget. Failure to deliver must not break the user
+      // flow; the diagnostics ring is best-effort.
+    });
+}
+
 export default defineContentScript({
   matches: ['*://*/*mod/quiz/attempt.php*'],
   runAt: 'document_idle',
@@ -59,7 +93,7 @@ export default defineContentScript({
     console.log('[moodle-quiz-extractor] content script loaded');
 
     browser.runtime.onMessage.addListener(
-      (raw: unknown, _sender, sendResponse: (response: unknown) => void) => {
+      (raw: unknown, sender, sendResponse: (response: unknown) => void) => {
         // Note: `zipQuiz` is NOT handled here. The popup sends it directly
         // to the background (with `tabUrl` captured from the active tab).
         // If this content script also re-forwarded it, the background
@@ -67,7 +101,7 @@ export default defineContentScript({
         // downloads.
         const req = QuizExtractRequestSchema.safeParse(raw);
         if (req.success) {
-          void handleExtract()
+          void handleExtract(sender?.tab?.id)
             .then((doc) => sendResponse({ kind: 'quizDocument', document: doc }))
             .catch((err: Error) =>
               sendResponse({
@@ -80,7 +114,7 @@ export default defineContentScript({
         }
         const prep = PrepareAutofillRequestSchema.safeParse(raw);
         if (prep.success) {
-          void handlePrepare(prep.data)
+          void handlePrepare(prep.data, sender?.tab?.id)
             .then(sendResponse)
             .catch((err: Error) => {
               const result: PrepareAutofillResult = {
@@ -95,7 +129,7 @@ export default defineContentScript({
         }
         const apply = ApplyAutofillRequestSchema.safeParse(raw);
         if (apply.success) {
-          void handleApply(apply.data.jobId)
+          void handleApply(apply.data.jobId, sender?.tab?.id)
             .then(sendResponse)
             .catch((err: Error) => {
               const result: ApplyAutofillResult = {
@@ -128,16 +162,86 @@ export default defineContentScript({
           sendResponse(result);
           return false;
         }
+        const collect = CollectDiagnosticsRequestSchema.safeParse(raw);
+        if (collect.success) {
+          const reqTyped: CollectDiagnosticsRequest = collect.data;
+          void forwardCollectToBackground(reqTyped, sender?.tab?.id ?? 0)
+            .then((report) => {
+              const result: SafeReportResult = {
+                kind: 'safeReportResult',
+                ok: true,
+                report,
+              };
+              sendResponse(result);
+            })
+            .catch((err: Error) => {
+              const result: SafeReportResult = {
+                kind: 'safeReportResult',
+                ok: false,
+                error: err.message,
+              };
+              sendResponse(SafeReportResultSchema.parse(result));
+            });
+          return true;
+        }
+        const fixture = GetFixtureSnapshotRequestSchema.safeParse(raw);
+        if (fixture.success) {
+          try {
+            const html =
+              document.documentElement && document.documentElement.outerHTML
+                ? document.documentElement.outerHTML
+                : '';
+            const result: FixtureSnapshotResult = FixtureSnapshotResultSchema.parse({
+              kind: 'fixtureSnapshotResult',
+              ok: true,
+              html,
+            });
+            sendResponse(result);
+          } catch (err) {
+            const result: FixtureSnapshotResult = FixtureSnapshotResultSchema.parse({
+              kind: 'fixtureSnapshotResult',
+              ok: false,
+              error: err instanceof Error ? err.message : 'snapshot failed',
+            });
+            sendResponse(result);
+          }
+          return true;
+        }
         return false;
       },
     );
   },
 });
 
-async function handleExtract() {
+async function forwardCollectToBackground(
+  req: CollectDiagnosticsRequest,
+  tabId: number,
+): Promise<SafeReport> {
+  void req;
+  const res = await browser.runtime.sendMessage({
+    kind: 'collectDiagnostics',
+    tabId,
+  });
+  const parsed = SafeReportResultSchema.safeParse(res);
+  if (!parsed.success || !parsed.data.ok || !parsed.data.report) {
+    throw new Error(parsed.data?.error ?? 'safe report unavailable');
+  }
+  return parsed.data.report;
+}
+
+async function handleExtract(senderTabId: number | undefined) {
   const dom = createDomAdapter(document);
   const result = detectMoodleAttempt(dom);
   if (result.kind !== 'supported') {
+    const code =
+      result.kind === 'expiredSession'
+        ? MQX.DETECT_LOGIN
+        : result.kind === 'finishedAttempt'
+          ? MQX.DETECT_SUMMARY
+          : result.kind === 'unsupportedLayout'
+            ? MQX.DETECT_UNSUPPORTED_LAYOUT
+            : MQX.DETECT_NOT_QUIZ;
+    emit({ schemaVersion: '1.0', stage: 'detect', code }, senderTabId);
     throw new Error(`cannot extract: ${result.kind}/${'reason' in result ? result.reason : ''}`);
   }
   const warns: Array<{ code: string; stage: 'parse'; message: string }> = [];
@@ -145,17 +249,32 @@ async function handleExtract() {
     dom.listQuestions().map((q) =>
       parseQuestion(q, {
         fingerprint,
-        warn: (code, message) => warns.push({ code, stage: 'parse', message }),
+        warn: (code, message) => {
+          warns.push({ code, stage: 'parse', message });
+          emit({ schemaVersion: '1.0', stage: 'parse', code: MQX.PARSE_UNKNOWN }, senderTabId);
+        },
       }),
     ),
   );
   return buildQuizDocument(dom, questions, warns);
 }
 
-async function handlePrepare(req: PrepareAutofillRequest): Promise<PrepareAutofillResult> {
+async function handlePrepare(
+  req: PrepareAutofillRequest,
+  senderTabId: number | undefined,
+): Promise<PrepareAutofillResult> {
   const dom = createDomAdapter(document);
   const detected = detectMoodleAttempt(dom);
   if (detected.kind !== 'supported') {
+    const code =
+      detected.kind === 'expiredSession'
+        ? MQX.DETECT_LOGIN
+        : detected.kind === 'finishedAttempt'
+          ? MQX.DETECT_SUMMARY
+          : detected.kind === 'unsupportedLayout'
+            ? MQX.DETECT_UNSUPPORTED_LAYOUT
+            : MQX.DETECT_NOT_QUIZ;
+    emit({ schemaVersion: '1.0', stage: 'detect', code }, senderTabId);
     return {
       kind: 'prepareAutofillResult',
       jobId: req.jobId,
@@ -168,7 +287,10 @@ async function handlePrepare(req: PrepareAutofillRequest): Promise<PrepareAutofi
     dom.listQuestions().map((q) =>
       parseQuestion(q, {
         fingerprint,
-        warn: (code, message) => warns.push({ code, stage: 'parse', message }),
+        warn: (code, message) => {
+          warns.push({ code, stage: 'parse', message });
+          emit({ schemaVersion: '1.0', stage: 'parse', code: MQX.PARSE_UNKNOWN }, senderTabId);
+        },
       }),
     ),
   );
@@ -176,6 +298,14 @@ async function handlePrepare(req: PrepareAutofillRequest): Promise<PrepareAutofi
 
   const answersParse = parseAnswerList(redactString(req.answersText));
   if (!answersParse.ok) {
+    emit(
+      {
+        schemaVersion: '1.0',
+        stage: 'parse',
+        code: MQX.PARSE_INVALID_LETTER,
+      },
+      senderTabId,
+    );
     return {
       kind: 'prepareAutofillResult',
       jobId: req.jobId,
@@ -185,6 +315,16 @@ async function handlePrepare(req: PrepareAutofillRequest): Promise<PrepareAutofi
   }
   const planResult = buildApplyPlan(answersParse.answers, doc);
   if (!planResult.ok) {
+    for (const e of planResult.errors) {
+      emit(
+        {
+          schemaVersion: '1.0',
+          stage: 'fill',
+          code: (e.code as typeof MQX.FILL_LETTER_NOT_FOUND) ?? MQX.FILL_LETTER_NOT_FOUND,
+        },
+        senderTabId,
+      );
+    }
     return {
       kind: 'prepareAutofillResult',
       jobId: req.jobId,
@@ -199,6 +339,14 @@ async function handlePrepare(req: PrepareAutofillRequest): Promise<PrepareAutofi
     formSpy: null,
     fetchSpy: null,
   });
+  emit(
+    {
+      schemaVersion: '1.0',
+      stage: 'fill',
+      code: MQX.FILL_FINGERPRINT_MISMATCH,
+    },
+    senderTabId,
+  );
   return {
     kind: 'prepareAutofillResult',
     jobId: req.jobId,
@@ -208,7 +356,7 @@ async function handlePrepare(req: PrepareAutofillRequest): Promise<PrepareAutofi
   };
 }
 
-async function handleApply(jobId: string): Promise<ApplyAutofillResult> {
+async function handleApply(jobId: string, senderTabId: number | undefined): Promise<ApplyAutofillResult> {
   const job = activeJobs.get(jobId);
   if (!job) {
     return {
@@ -220,6 +368,7 @@ async function handleApply(jobId: string): Promise<ApplyAutofillResult> {
       errors: ['job not found (reload the page and try again)'],
     };
   }
+  emit({ schemaVersion: '1.0', stage: 'fill', code: MQX.FILL_FETCH_BLOCKED }, senderTabId);
   // Engage both spies before touching the DOM.
   job.formSpy = installNoSubmitSpy(document);
   job.fetchSpy = installFetchSpy({
@@ -231,11 +380,29 @@ async function handleApply(jobId: string): Promise<ApplyAutofillResult> {
   for (const step of job.plan.steps) {
     const container = findQuestionContainer(document, step.questionNumber);
     if (!container) {
+      emit(
+        {
+          schemaVersion: '1.0',
+          stage: 'fill',
+          code: MQX.FILL_FINGERPRINT_MISMATCH,
+          questionNumber: step.questionNumber,
+        },
+        senderTabId,
+      );
       errors.push(`step ${step.questionNumber}: question container not found in DOM`);
       break;
     }
     const result = applyStep({ root: container, step });
     if (!result.ok) {
+      emit(
+        {
+          schemaVersion: '1.0',
+          stage: 'fill',
+          code: MQX.FILL_CONTROL_NOT_CONFIRMED,
+          questionNumber: step.questionNumber,
+        },
+        senderTabId,
+      );
       errors.push(`${result.error.code}: ${result.error.message}`);
       break;
     }
