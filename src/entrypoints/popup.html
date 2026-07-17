@@ -119,7 +119,7 @@
       <button class="tab" role="tab" id="tab-autofill" aria-selected="false" data-tab="autofill">
         Autocompletar
       </button>
-      <button class="tab" role="tab" id="tab-diagnostics" aria-selected="false" data-tab="diagnostics" disabled>
+      <button class="tab" role="tab" id="tab-diagnostics" aria-selected="false" data-tab="diagnostics">
         Diagnóstico
       </button>
       <button class="tab" role="tab" id="tab-settings" aria-selected="false" data-tab="settings" disabled>
@@ -153,7 +153,26 @@
     </section>
 
     <section class="tab-panel" id="panel-diagnostics" data-tab="diagnostics">
-      <p style="font-size: 12px; opacity: 0.7;">Diagnóstico (Fase 4).</p>
+      <p style="font-size: 12px; opacity: 0.7;">
+        Diagnóstico local, sin envío. El reporte solo contiene códigos
+        <code>MQX-*</code> agregados (sin texto, URL, título ni
+        identificadores del cuestionario).
+      </p>
+      <button id="diag-view" type="button">Ver reporte (safe, local)</button>
+      <button id="diag-preview" type="button" disabled>
+        Previsualizar fixture (HTML redactado)
+      </button>
+      <label
+        style="font-size: 12px; display: block; margin-top: 8px;"
+      >
+        <input type="checkbox" id="diag-consent" />
+        Confirmo que este bundle puede contener texto visible del
+        cuestionario y que lo revisaré antes de compartirlo.
+      </label>
+      <button id="diag-download" type="button" disabled>
+        Descargar bundle (ZIP local)
+      </button>
+      <div id="diag-output" class="status" data-state="idle" hidden></div>
     </section>
 
     <section class="tab-panel" id="panel-settings" data-tab="settings">
