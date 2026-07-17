@@ -209,3 +209,40 @@ export const SafeReportResultSchema = z.object({
   error: z.string().optional(),
 });
 export type SafeReportResult = z.infer<typeof SafeReportResultSchema>;
+
+export const PreviewFixtureRequestSchema = z.object({
+  kind: z.literal('previewFixture'),
+  tabId: z.number().int().nonnegative(),
+});
+export type PreviewFixtureRequest = z.infer<typeof PreviewFixtureRequestSchema>;
+
+export const PreviewFixtureResultSchema = z.object({
+  kind: z.literal('previewFixtureResult'),
+  ok: z.boolean(),
+  preview: z
+    .object({
+      bytes: z.number().int().nonnegative(),
+      canaryHits: z.array(z.string()),
+      entryCount: z.number().int().nonnegative(),
+    })
+    .optional(),
+  error: z.string().optional(),
+});
+export type PreviewFixtureResult = z.infer<typeof PreviewFixtureResultSchema>;
+
+export const DownloadFixtureRequestSchema = z.object({
+  kind: z.literal('downloadFixture'),
+  tabId: z.number().int().nonnegative(),
+  ackCanaryHits: z.array(z.string()),
+});
+export type DownloadFixtureRequest = z.infer<typeof DownloadFixtureRequestSchema>;
+
+export const DownloadFixtureResultSchema = z.object({
+  kind: z.literal('downloadFixtureResult'),
+  ok: z.boolean(),
+  filename: z.string().optional(),
+  bytes: z.number().int().nonnegative().optional(),
+  refusedReason: z.enum(['canary-detected', 'permission-denied', 'unavailable']).optional(),
+  error: z.string().optional(),
+});
+export type DownloadFixtureResult = z.infer<typeof DownloadFixtureResultSchema>;

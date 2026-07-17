@@ -23,9 +23,11 @@ import type { QuizDocument } from '~/domain/quiz-schema';
 import type {
   ApplyAutofillResult,
   ClearPopupSessionResult,
+  DownloadFixtureResult,
   GetAutofillJobResult,
   LoadPopupSessionResult,
   PrepareAutofillResult,
+  PreviewFixtureResult,
   QuizDocumentMessage,
   SafeReportResult,
   SavePopupSessionRequest,
@@ -513,37 +515,137 @@ function wirePersistenceLifecycle(): void {
 
 function wireDiagnostics(): void {
   const btn = document.getElementById('diag-view') as HTMLButtonElement | null;
+  const previewBtn = document.getElementById('diag-preview') as HTMLButtonElement | null;
+  const downloadBtn = document.getElementById('diag-download') as HTMLButtonElement | null;
+  const consentBox = document.getElementById('diag-consent') as HTMLInputElement | null;
   const out = document.getElementById('diag-output') as HTMLDivElement | null;
-  if (!btn || !out) return;
-  btn.addEventListener('click', async () => {
-    const tab = await getActiveTab();
-    if (tab === null) {
-      out.hidden = false;
-      out.textContent = 'No hay pestaña activa.';
-      out.dataset.state = 'error';
-      return;
-    }
-    out.hidden = false;
-    out.dataset.state = 'busy';
-    out.textContent = 'Recopilando reporte seguro…';
-    btn.disabled = true;
-    try {
-      const res = await sendToContent<SafeReportResult>(tab.id, {
-        kind: 'collectDiagnostics',
-        tabId: tab.id,
-      });
-      if (!res || res.kind !== 'safeReportResult' || !res.ok || !res.report) {
-        throw new Error(res?.error ?? 'reporte no disponible');
-      }
-      out.dataset.state = 'ok';
-      out.textContent = renderSafeReportText(res.report);
-    } catch (err) {
-      out.dataset.state = 'error';
-      out.textContent = `Error: ${(err as Error).message}`;
-    } finally {
-      btn.disabled = false;
-    }
+  if (!btn || !previewBtn || !downloadBtn || !consentBox || !out) return;
+
+  let previewCanaryHits: string[] = [];
+  let previewFilename: string | null = null;
+
+  btn.addEventListener('click', () => {
+    void runSafeReport(btn, out);
   });
+  previewBtn.addEventListener('click', () => {
+    void runPreview(previewBtn, out, (info) => {
+      previewCanaryHits = info.canaryHits;
+      previewFilename = info.filename;
+      const canDownload =
+        consentBox.checked && previewCanaryHits.length === 0 && previewFilename !== null;
+      downloadBtn.disabled = !canDownload;
+    });
+  });
+  consentBox.addEventListener('change', () => {
+    downloadBtn.disabled =
+      !consentBox.checked ||
+      previewCanaryHits.length > 0 ||
+      previewFilename === null;
+  });
+  downloadBtn.addEventListener('click', () => {
+    void runDownload(downloadBtn, out, previewCanaryHits);
+  });
+}
+
+async function runSafeReport(
+  btn: HTMLButtonElement,
+  out: HTMLDivElement,
+): Promise<void> {
+  const tab = await getActiveTab();
+  if (tab === null) {
+    setOut(out, 'No hay pestaña activa.', 'error');
+    return;
+  }
+  setOut(out, 'Recopilando reporte seguro…', 'busy');
+  btn.disabled = true;
+  try {
+    const res = await sendToContent<SafeReportResult>(tab.id, {
+      kind: 'collectDiagnostics',
+      tabId: tab.id,
+    });
+    if (!res || res.kind !== 'safeReportResult' || !res.ok || !res.report) {
+      throw new Error(res?.error ?? 'reporte no disponible');
+    }
+    setOut(out, renderSafeReportText(res.report), 'ok');
+  } catch (err) {
+    setOut(out, `Error: ${(err as Error).message}`, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function runPreview(
+  btn: HTMLButtonElement,
+  out: HTMLDivElement,
+  onReady: (info: { canaryHits: string[]; filename: string | null }) => void,
+): Promise<void> {
+  const tab = await getActiveTab();
+  if (tab === null) {
+    setOut(out, 'No hay pestaña activa.', 'error');
+    return;
+  }
+  setOut(out, 'Generando preview de fixture…', 'busy');
+  btn.disabled = true;
+  try {
+    const res = await sendToBackground<PreviewFixtureResult>({
+      kind: 'previewFixture',
+      tabId: tab.id,
+    });
+    if (!res || res.kind !== 'previewFixtureResult' || !res.ok || !res.preview) {
+      throw new Error(res?.error ?? 'preview no disponible');
+    }
+    onReady({
+      canaryHits: res.preview.canaryHits,
+      filename: res.preview.entryCount > 0 ? `mqx-debug-…zip` : null,
+    });
+    setOut(
+      out,
+      res.preview.canaryHits.length === 0
+        ? `Preview OK: ${res.preview.entryCount} archivo(s), ${res.preview.bytes} bytes. Marca el consentimiento y pulsa Descargar.`
+        : `Preview bloqueado: ${res.preview.canaryHits.length} canario(s) detectado(s).`,
+      res.preview.canaryHits.length === 0 ? 'ok' : 'error',
+    );
+  } catch (err) {
+    setOut(out, `Error: ${(err as Error).message}`, 'error');
+    onReady({ canaryHits: [], filename: null });
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function runDownload(
+  btn: HTMLButtonElement,
+  out: HTMLDivElement,
+  ackCanaryHits: string[],
+): Promise<void> {
+  const tab = await getActiveTab();
+  if (tab === null) {
+    setOut(out, 'No hay pestaña activa.', 'error');
+    return;
+  }
+  setOut(out, 'Generando bundle…', 'busy');
+  btn.disabled = true;
+  try {
+    const res = await sendToBackground<DownloadFixtureResult>({
+      kind: 'downloadFixture',
+      tabId: tab.id,
+      ackCanaryHits,
+    });
+    if (!res || res.kind !== 'downloadFixtureResult' || !res.ok) {
+      throw new Error(res?.error ?? 'descarga rechazada');
+    }
+    setOut(out, `Bundle descargado: ${res.filename} (${res.bytes ?? 0} bytes).`, 'ok');
+  } catch (err) {
+    setOut(out, `Error: ${(err as Error).message}`, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function setOut(out: HTMLDivElement, text: string, state: 'idle' | 'busy' | 'ok' | 'error'): void {
+  out.hidden = false;
+  out.textContent = text;
+  out.dataset.state = state;
 }
 
 function renderSafeReportText(report: SafeReport): string {

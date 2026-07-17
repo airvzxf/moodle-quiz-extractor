@@ -159,6 +159,19 @@
         identificadores del cuestionario).
       </p>
       <button id="diag-view" type="button">Ver reporte (safe, local)</button>
+      <button id="diag-preview" type="button" disabled>
+        Previsualizar fixture (HTML redactado)
+      </button>
+      <label
+        style="font-size: 12px; display: block; margin-top: 8px;"
+      >
+        <input type="checkbox" id="diag-consent" />
+        Confirmo que este bundle puede contener texto visible del
+        cuestionario y que lo revisaré antes de compartirlo.
+      </label>
+      <button id="diag-download" type="button" disabled>
+        Descargar bundle (ZIP local)
+      </button>
       <div id="diag-output" class="status" data-state="idle" hidden></div>
     </section>
 
