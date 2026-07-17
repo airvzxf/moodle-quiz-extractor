@@ -20,8 +20,17 @@ import { QuizDocumentSchema, type QuizDocument } from '~/domain/quiz-schema';
 import {
   ClearPopupSessionRequestSchema,
   type ClearPopupSessionResult,
+  CollectDiagnosticsRequestSchema,
+  DownloadFixtureRequestSchema,
+  type DownloadFixtureResult,
   LoadPopupSessionRequestSchema,
   type LoadPopupSessionResult,
+  LogDiagnosticsEventRequestSchema,
+  type LogDiagnosticsEventResult,
+  PreviewFixtureRequestSchema,
+  type PreviewFixtureResult,
+  SafeReportResultSchema,
+  type SafeReportResult,
   SavePopupSessionRequestSchema,
   type SavePopupSessionRequest,
   type SavePopupSessionResult,
@@ -35,6 +44,11 @@ import {
   POPUP_SESSION_SCHEMA_VERSION,
   type PopupSessionState,
 } from '~/background/popup-session-store';
+import { DiagnosticsStore } from '~/background/diagnostics-store';
+import { buildSafeReport } from '~/diagnostics/safe-report';
+import { buildFixtureBundle, FixtureBundleError } from '~/diagnostics/fixture-builder';
+import { findCanaryLeaks } from '~/diagnostics/canary-patterns';
+import { RingBufferLogger } from '~/diagnostics/logger';
 
 const GENERATOR_VERSION = '0.3.0';
 
@@ -48,12 +62,26 @@ function getPopupSessionStore(): PopupSessionStore {
   return popupSessionStore;
 }
 
+let diagnosticsStore: DiagnosticsStore | null = null;
+function getDiagnosticsStore(): DiagnosticsStore {
+  if (!diagnosticsStore) {
+    diagnosticsStore = new DiagnosticsStore(new BrowserStorageSessionAdapter());
+  }
+  return diagnosticsStore;
+}
+
 export default defineBackground(() => {
   // eslint-disable-next-line no-console
   console.log('[moodle-quiz-extractor] background started');
 
+  // Tab lifecycle: drop the diagnostics ring when a tab closes so we
+  // never leak state across sessions.
+  browser.tabs?.onRemoved?.addListener?.((tabId: number) => {
+    void getDiagnosticsStore().delete(tabId).catch(() => undefined);
+  });
+
   browser.runtime.onMessage.addListener(
-    (raw: unknown, _sender, sendResponse: (response: unknown) => void) => {
+    (raw: unknown, sender, sendResponse: (response: unknown) => void) => {
       if (!raw || typeof (raw as { kind?: string }).kind !== 'string') return false;
 
       const kind = (raw as { kind: string }).kind;
@@ -155,10 +183,260 @@ export default defineBackground(() => {
         return true;
       }
 
+      if (kind === 'logDiagnosticsEvent') {
+        const req = LogDiagnosticsEventRequestSchema.safeParse(raw);
+        if (!req.success) {
+          const result: LogDiagnosticsEventResult = {
+            kind: 'logDiagnosticsEventResult',
+            ok: false,
+            error: 'malformed event',
+          };
+          sendResponse(result);
+          return false;
+        }
+        // Stamp ts from the background clock and derive tabId from
+        // sender.tab.id. NEVER trust the tabId the content script sent.
+        const senderTabId = sender?.tab?.id ?? req.data.tabId;
+        const ts = Date.now();
+        void getDiagnosticsStore()
+          .append(senderTabId, req.data.input, ts)
+          .then(() => {
+            const result: LogDiagnosticsEventResult = {
+              kind: 'logDiagnosticsEventResult',
+              ok: true,
+            };
+            sendResponse(result);
+          })
+          .catch((err: Error) => {
+            const result: LogDiagnosticsEventResult = {
+              kind: 'logDiagnosticsEventResult',
+              ok: false,
+              error: err.message,
+            };
+            sendResponse(result);
+          });
+        return true;
+      }
+
+      if (kind === 'collectDiagnostics') {
+        const req = CollectDiagnosticsRequestSchema.safeParse(raw);
+        if (!req.success) {
+          const result: SafeReportResult = SafeReportResultSchema.parse({
+            kind: 'safeReportResult',
+            ok: false,
+            error: 'malformed request',
+          });
+          sendResponse(result);
+          return false;
+        }
+        const senderTabId = sender?.tab?.id ?? req.data.tabId;
+        void buildReportForTab(senderTabId).then(sendResponse).catch((err: Error) => {
+          const result: SafeReportResult = SafeReportResultSchema.parse({
+            kind: 'safeReportResult',
+            ok: false,
+            error: err.message,
+          });
+          sendResponse(result);
+        });
+        return true;
+      }
+
+      if (kind === 'previewFixture') {
+        const req = PreviewFixtureRequestSchema.safeParse(raw);
+        if (!req.success) {
+          const result: PreviewFixtureResult = {
+            kind: 'previewFixtureResult',
+            ok: false,
+            error: 'malformed request',
+          };
+          sendResponse(result);
+          return false;
+        }
+        const senderTabId = sender?.tab?.id ?? req.data.tabId;
+        void previewFixtureForTab(senderTabId).then(sendResponse).catch((err: Error) => {
+          const result: PreviewFixtureResult = {
+            kind: 'previewFixtureResult',
+            ok: false,
+            error: err.message,
+          };
+          sendResponse(result);
+        });
+        return true;
+      }
+
+      if (kind === 'downloadFixture') {
+        const req = DownloadFixtureRequestSchema.safeParse(raw);
+        if (!req.success) {
+          const result: DownloadFixtureResult = {
+            kind: 'downloadFixtureResult',
+            ok: false,
+            error: 'malformed request',
+          };
+          sendResponse(result);
+          return false;
+        }
+        const senderTabId = sender?.tab?.id ?? req.data.tabId;
+        if (req.data.ackCanaryHits.length > 0) {
+          const result: DownloadFixtureResult = {
+            kind: 'downloadFixtureResult',
+            ok: false,
+            refusedReason: 'canary-detected',
+            error: 'canary hits detected; refuse to ship bundle',
+          };
+          sendResponse(result);
+          return true;
+        }
+        void downloadFixtureForTab(senderTabId).then(sendResponse).catch((err: Error) => {
+          const result: DownloadFixtureResult = {
+            kind: 'downloadFixtureResult',
+            ok: false,
+            error: err.message,
+          };
+          sendResponse(result);
+        });
+        return true;
+      }
+
       return false;
     },
   );
 });
+
+async function buildReportForTab(tabId: number): Promise<SafeReportResult> {
+  const store = getDiagnosticsStore();
+  const ring = await store.load(tabId);
+  if (!ring) {
+    return SafeReportResultSchema.parse({
+      kind: 'safeReportResult',
+      ok: true,
+      report: {
+        schemaVersion: '1.4.0',
+        generator: 'moodle-quiz-extractor',
+        generatorVersion: GENERATOR_VERSION,
+        manifestVersion: 3,
+        exportedAt: new Date().toISOString(),
+        ring: { capacity: 200, length: 0, dropped: 0 },
+        counts: { events: 0, byStage: {}, byCode: {} },
+        recentCodes: [],
+        truncated: false,
+      },
+    });
+  }
+  const report = buildSafeReport({
+    ring,
+    generatorVersion: GENERATOR_VERSION,
+    manifestVersion: 3,
+  });
+  return SafeReportResultSchema.parse({
+    kind: 'safeReportResult',
+    ok: true,
+    report,
+  });
+}
+
+async function captureRawHtml(tabId: number): Promise<string | null> {
+  // The content script must answer with a sanitized HTML snapshot. We
+  // ask for it via a private message kind that only the popup wires.
+  // For now we keep the request in the background so we can later
+  // wire the content-script side; the preview pipeline is fully
+  // exercised by unit tests via buildFixtureBundle.
+  void tabId;
+  return null;
+}
+
+async function previewFixtureForTab(tabId: number): Promise<PreviewFixtureResult> {
+  const rawHtml = await captureRawHtml(tabId);
+  if (rawHtml === null) {
+    return {
+      kind: 'previewFixtureResult',
+      ok: false,
+      error: 'no fixture available (content script did not return HTML)',
+    };
+  }
+  const ring = await getDiagnosticsStore().load(tabId);
+  try {
+    const built = buildFixtureBundle({
+      rawHtml,
+      safeReportInput: {
+        ring: ring ?? RingBufferLogger.empty(),
+        generatorVersion: GENERATOR_VERSION,
+        manifestVersion: 3,
+      },
+    });
+    const hits = findCanaryLeaks(built.sanitized.html);
+    return {
+      kind: 'previewFixtureResult',
+      ok: true,
+      preview: {
+        bytes: built.bytes.length,
+        canaryHits: hits.map((h) => h.label),
+        entryCount: 2,
+      },
+    };
+  } catch (err) {
+    if (err instanceof FixtureBundleError) {
+      return {
+        kind: 'previewFixtureResult',
+        ok: false,
+        error: err.message,
+      };
+    }
+    throw err;
+  }
+}
+
+async function downloadFixtureForTab(tabId: number): Promise<DownloadFixtureResult> {
+  const rawHtml = await captureRawHtml(tabId);
+  if (rawHtml === null) {
+    return {
+      kind: 'downloadFixtureResult',
+      ok: false,
+      refusedReason: 'unavailable',
+      error: 'no fixture available',
+    };
+  }
+  const ring = await getDiagnosticsStore().load(tabId);
+  let built;
+  try {
+    built = buildFixtureBundle({
+      rawHtml,
+      safeReportInput: {
+        ring: ring ?? RingBufferLogger.empty(),
+        generatorVersion: GENERATOR_VERSION,
+        manifestVersion: 3,
+      },
+    });
+  } catch (err) {
+    if (err instanceof FixtureBundleError) {
+      return {
+        kind: 'downloadFixtureResult',
+        ok: false,
+        refusedReason: 'unavailable',
+        error: err.message,
+      };
+    }
+    throw err;
+  }
+  const finalCheck = findCanaryLeaks(JSON.stringify(built.safeReport));
+  if (finalCheck.length > 0) {
+    return {
+      kind: 'downloadFixtureResult',
+      ok: false,
+      refusedReason: 'canary-detected',
+      error: 'safe report contains canary patterns',
+    };
+  }
+  const downloader = createDownloadService(
+    browser as unknown as Parameters<typeof createDownloadService>[0],
+  );
+  await downloader.downloadZip(built.bytes, built.filename);
+  return {
+    kind: 'downloadFixtureResult',
+    ok: true,
+    filename: built.filename,
+    bytes: built.bytes.length,
+  };
+}
 
 async function handleSavePopupSession(
   req: SavePopupSessionRequest,
