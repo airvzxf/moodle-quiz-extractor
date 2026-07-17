@@ -50,7 +50,7 @@ import { buildFixtureBundle, FixtureBundleError } from '~/diagnostics/fixture-bu
 import { findCanaryLeaks } from '~/diagnostics/canary-patterns';
 import { RingBufferLogger } from '~/diagnostics/logger';
 
-const GENERATOR_VERSION = '0.3.0';
+const GENERATOR_VERSION = '0.4.0';
 
 // Module-level singleton so the popup's state survives across
 // background-script Wakes (MV3 may unload the SW between events).

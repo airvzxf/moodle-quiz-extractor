@@ -1,0 +1,106 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g. v0.4.0). Must already exist.'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build + publish release artifacts
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: release-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.19
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prepare WXT types
+        run: pnpm prepare
+
+      - name: Type-check
+        run: pnpm compile
+
+      - name: Tests
+        run: pnpm test
+
+      - name: Build Firefox MV3
+        run: pnpm build:firefox
+
+      - name: Lint extension
+        run: pnpm lint:ext
+
+      - name: Redact check
+        run: pnpm redact
+
+      - name: Package Firefox extension and sources (MV3)
+        run: pnpm zip:firefox
+
+      - name: Verify exclusion of raw resources/ from sources zip
+        run: |
+          if unzip -l .output/*-sources.zip | grep -q 'resources/'; then
+            echo '::error::sources zip contains raw resources/'
+            exit 1
+          fi
+          echo 'sources zip clean (resources/ excluded)'
+
+      - name: SHA-256 of release artifacts
+        run: |
+          set -e
+          cd .output
+          sha256sum *-firefox.zip *-sources.zip > SHA256SUMS-0.4.0.txt
+          cat SHA256SUMS-0.4.0.txt
+
+      - name: Generate release notes
+        id: notes
+        run: |
+          {
+            echo "## Resumen"
+            echo
+            echo "Fase 4 cierra el ciclo del primer release público real. La extensión añade diagnóstico two-tier (safe report local + fixture HTML redactada opt-in), completa la matriz OWASP A01–A10 + threat model STRIDE, y queda lista para enviar a Mozilla AMO."
+            echo
+            echo "## Cambios por PR"
+            echo
+            gh pr list --state merged --base main --search 'phase-4' --json number,title --jq '.[] | "- #\(.number) \(.title)"' || true
+          } > RELEASE-NOTES.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          generate_release_notes: false
+          body_path: RELEASE-NOTES.md
+          files: |
+            .output/*-firefox.zip
+            .output/*-sources.zip
+            .output/SHA256SUMS-0.4.0.txt
+          fail_on_unmatched_files: true
+          draft: false
+          prerelease: false
