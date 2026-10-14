@@ -86,6 +86,14 @@ async function download(fileName: string, zipBase64: string): Promise<void> {
         if (delta.id === id && delta.state?.current && delta.state.current !== 'in_progress') done();
       }
       browser.downloads.onChanged.addListener(listener);
+      // Un ZIP pequeño puede terminar antes de que exista el listener;
+      // sin esta consulta se esperaría DOWNLOAD_WAIT_MS completo.
+      void browser.downloads.search({ id }).then(
+        ([item]) => {
+          if (item && item.state !== 'in_progress') done();
+        },
+        () => {},
+      );
     });
   } finally {
     URL.revokeObjectURL(url);

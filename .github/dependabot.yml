@@ -1,0 +1,48 @@
+# Dependabot: acciones de GitHub y dependencias npm (pnpm-lock.yaml).
+#
+# * Las acciones están fijadas por SHA; Dependabot actualiza el SHA y el
+#   comentario de versión a la vez.
+# * Un PR por grupo para que cada revisión sea pequeña.
+# * Las mayores de wxt y typescript van solas: suelen romper la
+#   compilación o los tipos generados en .wxt/.
+
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      timezone: "Etc/UTC"
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "ci"]
+    commit-message:
+      prefix: "ci"
+    groups:
+      actions-github:
+        patterns: ["actions/*"]
+      actions-others:
+        patterns: ["*"]
+        exclude-patterns: ["actions/*"]
+
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      timezone: "Etc/UTC"
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "javascript"]
+    commit-message:
+      prefix: "deps"
+      prefix-development: "deps(dev)"
+    # Espera 7 días antes de proponer una versión recién publicada.
+    cooldown:
+      default-days: 7
+    groups:
+      runtime:
+        dependency-type: "production"
+        update-types: ["minor", "patch"]
+      dev-minor:
+        dependency-type: "development"
+        update-types: ["minor", "patch"]
