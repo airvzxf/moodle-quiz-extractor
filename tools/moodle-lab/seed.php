@@ -146,7 +146,10 @@ function lab_attempt(stdClass $quiz, array $responses = [], bool $finish = false
         $qa = $attemptobj->get_question_attempt($slot);
         $postdata[$qa->get_control_field_name('sequencecheck')] = (string)$qa->get_sequence_check_count();
         $postdata[$qa->get_flag_field_name()] = (string)(int)$qa->is_flagged();
-        foreach ($qa->get_question()->un_summarise_response($summary) as $name => $value) {
+        // Texto visible (p. ej. 'Linux') o, si depende del idioma, las
+        // variables de respuesta tal cual (p. ej. ['answer' => '0']).
+        $response = is_array($summary) ? $summary : $qa->get_question()->un_summarise_response($summary);
+        foreach ($response as $name => $value) {
             $postdata[$qa->get_qt_field_name($name)] = (string)$value;
         }
     }
@@ -203,7 +206,7 @@ $attempts['no-soportadas'] = lab_attempt($quizzes['no-soportadas']);
 $attempts['revision'] = lab_attempt($quizzes['revision'], [
     1 => 'Linux',            // correcta
     2 => 'TCP',              // múltiple parcial (falta UDP)
-    3 => get_string('false', 'qtype_truefalse'), // incorrecta (verdadero/falso)
+    3 => ['answer' => '0'],  // incorrecta: «Falso» (verdadero/falso)
     4 => '12',               // incorrecta
     // 5 sin responder
     6 => 'Ciudad de México', // correcta

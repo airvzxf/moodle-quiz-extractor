@@ -1,13 +1,13 @@
 {
-  "attempt-una-pagina": "https://moodle.example.test/mod/quiz/attempt.php?attempt=1&cmid=2",
-  "attempt-libre-p0": "https://moodle.example.test/mod/quiz/attempt.php?attempt=2&cmid=3",
-  "attempt-libre-p1": "https://moodle.example.test/mod/quiz/attempt.php?attempt=2&cmid=3&page=1",
-  "attempt-libre-p2": "https://moodle.example.test/mod/quiz/attempt.php?attempt=2&cmid=3&page=2",
-  "attempt-secuencial": "https://moodle.example.test/mod/quiz/attempt.php?attempt=3&cmid=4",
-  "attempt-imagenes": "https://moodle.example.test/mod/quiz/attempt.php?attempt=4&cmid=5",
-  "attempt-no-soportadas": "https://moodle.example.test/mod/quiz/attempt.php?attempt=5&cmid=6",
-  "review-revision": "https://moodle.example.test/mod/quiz/review.php?attempt=6&cmid=7",
-  "review-revision-limitada": "https://moodle.example.test/mod/quiz/review.php?attempt=7&cmid=8",
-  "review-revision-p1": "https://moodle.example.test/mod/quiz/review.php?attempt=6&cmid=7&page=1",
-  "review-revision-showall": "https://moodle.example.test/mod/quiz/review.php?attempt=6&cmid=7&showall=1"
+  "attempt-una-pagina": "https://moodle.example.test/mod/quiz/attempt.php?attempt=8&cmid=10",
+  "attempt-libre-p0": "https://moodle.example.test/mod/quiz/attempt.php?attempt=9&cmid=11",
+  "attempt-libre-p1": "https://moodle.example.test/mod/quiz/attempt.php?attempt=9&cmid=11&page=1",
+  "attempt-libre-p2": "https://moodle.example.test/mod/quiz/attempt.php?attempt=9&cmid=11&page=2",
+  "attempt-secuencial": "https://moodle.example.test/mod/quiz/attempt.php?attempt=10&cmid=12",
+  "attempt-imagenes": "https://moodle.example.test/mod/quiz/attempt.php?attempt=11&cmid=13",
+  "attempt-no-soportadas": "https://moodle.example.test/mod/quiz/attempt.php?attempt=12&cmid=14",
+  "review-revision": "https://moodle.example.test/mod/quiz/review.php?attempt=13&cmid=15",
+  "review-revision-limitada": "https://moodle.example.test/mod/quiz/review.php?attempt=14&cmid=16",
+  "review-revision-p1": "https://moodle.example.test/mod/quiz/review.php?attempt=13&cmid=15&page=1",
+  "review-revision-showall": "https://moodle.example.test/mod/quiz/review.php?attempt=13&cmid=15&showall=1"
 }
