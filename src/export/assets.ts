@@ -19,7 +19,7 @@ export const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 
 /** Todas las imágenes del documento en orden: por pregunta, enunciado y luego opciones. */
 export function documentImages(doc: QuizDocument): QuizImage[] {
-  throw new Error('not implemented');
+  return doc.questions.flatMap((q) => [...q.images, ...q.choices.flatMap((c) => c.images)]);
 }
 
 /**
@@ -30,7 +30,19 @@ export function documentImages(doc: QuizDocument): QuizImage[] {
  * donde <ext> es desde el último '.' (si existe y no es el primer carácter).
  */
 export function planAssets(doc: QuizDocument): AssetPlan[] {
-  throw new Error('not implemented');
+  const plans: AssetPlan[] = [];
+  const seenUrls = new Set<string>();
+  const usedNames = new Set<string>();
+  for (const image of documentImages(doc)) {
+    if (seenUrls.has(image.url)) continue;
+    seenUrls.add(image.url);
+    const base = safeName(image.url);
+    let name = base;
+    for (let n = 2; usedNames.has(name); n++) name = withSuffix(base, n);
+    usedNames.add(name);
+    plans.push({ url: image.url, path: `quiz/${name}` });
+  }
+  return plans;
 }
 
 /**
@@ -46,5 +58,42 @@ export async function fetchAssets(
   origin: string,
   fetchImage: FetchImage,
 ): Promise<{ files: Map<string, FetchedAsset>; warnings: ExportWarning[] }> {
-  throw new Error('not implemented');
+  const files = new Map<string, FetchedAsset>();
+  const warnings: ExportWarning[] = [];
+  for (const plan of plans) {
+    let accepted = false;
+    if (new URL(plan.url).origin === origin) {
+      try {
+        const response = await fetchImage(plan.url);
+        const type = response.headers.get('content-type') ?? '';
+        if (response.ok && type.toLowerCase().startsWith('image/')) {
+          const bytes = new Uint8Array(await response.arrayBuffer());
+          if (bytes.length <= MAX_IMAGE_BYTES) {
+            files.set(plan.url, { path: plan.path, bytes });
+            accepted = true;
+          }
+        }
+      } catch {
+        accepted = false;
+      }
+    }
+    if (!accepted) warnings.push({ code: 'image-not-downloaded', detail: plan.url });
+  }
+  return { files, warnings };
+}
+
+function safeName(url: string): string {
+  const last = new URL(url).pathname.split('/').pop() ?? '';
+  let decoded = last;
+  try {
+    decoded = decodeURIComponent(last);
+  } catch {
+    decoded = last;
+  }
+  return decoded.replace(/[^A-Za-z0-9._-]+/g, '_') || 'imagen';
+}
+
+function withSuffix(name: string, n: number): string {
+  const dot = name.lastIndexOf('.');
+  return dot > 0 ? `${name.slice(0, dot)}-${n}${name.slice(dot)}` : `${name}-${n}`;
 }
