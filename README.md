@@ -14,7 +14,7 @@ lista en texto plano. **Nunca envía el intento**: el envío final siempre lo ha
   - `quiz.md`: el cuestionario legible;
   - `quiz.json`: los mismos datos en formato estructurado;
   - `quiz/`: las imágenes del enunciado y de las opciones.
-- **Modo detallado** (casilla): el Markdown marca con `[x]` lo que ya está seleccionado y
+- **Modo detallado** (casilla): el Markdown marca con `- [x]` lo que ya está seleccionado y
   añade datos técnicos (origen, páginas, tipo Moodle, instrucción, imágenes, avisos).
 - **Autollenar**: pegas tus respuestas, pulsas *Revisar* para ver qué se aplicará y
   *Aplicar en esta página* para marcarlas. En un intento de varias páginas, ve a cada
@@ -55,8 +55,8 @@ Desconocido: Actividad_1._Cuestionario
 [IMAGEN](./quiz/A2_Examen_U1.png)
 #### Respuestas
 Selecciona una opción:
-[ ] a. 1A, 2C, 3D, 4B.
-[ ] b. 1C, 2A, 3D, 4B.
+- [ ] a. 1A, 2C, 3D, 4B.
+- [ ] b. 1C, 2A, 3D, 4B.
 
 Metadata
 Tipo de respuesta: single_choice.

@@ -18,8 +18,8 @@ Advertencia: La pregunta 2 tiene un tipo no soportado; se exportó sin opciones.
 ### 1. El kernel es parte del sistema operativo.
 #### Respuestas
 Selecciona una opción:
-[x] a. Verdadero.
-[ ] b. Falso.
+- [x] a. Verdadero.
+- [ ] b. Falso.
 
 Metadata
 Tipo de respuesta: single_choice.
@@ -49,8 +49,8 @@ Página: 1
 [IMAGEN](https://cdn.example.org/logo.png)
 #### Respuestas
 Selecciona una opción:
-[ ] a. [IMAGEN](https://moodle.example.test/pluginfile.php/1/question/answer/500/4/11/opcion.png).
-[ ] b. Ninguna de las anteriores.
+- [ ] a. [IMAGEN](https://moodle.example.test/pluginfile.php/1/question/answer/500/4/11/opcion.png).
+- [ ] b. Ninguna de las anteriores.
 
 Metadata
 Tipo de respuesta: single_choice.
@@ -69,9 +69,9 @@ Imagen: Opción con imagen — https://moodle.example.test/pluginfile.php/1/ques
 [IMAGEN](https://moodle.example.test/pluginfile.php/1/question/questiontext/500/5/9/diagrama%20red.png)
 #### Respuestas
 Selecciona una o mas opción:
-[x] a. TCP.
-[ ] b. HTTP.
-[x] c. UDP.
+- [x] a. TCP.
+- [ ] b. HTTP.
+- [x] c. UDP.
 
 Metadata
 Tipo de respuesta: multiple_choice.

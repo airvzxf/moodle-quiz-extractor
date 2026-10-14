@@ -16,7 +16,7 @@ const EDGE_PATHS = new Map([
 ]);
 
 describe('renderMarkdown, formato por defecto', () => {
-  it.each(REAL_FIXTURES)('%s coincide byte a byte con el contrato heredado', async (name) => {
+  it.each(REAL_FIXTURES)('%s coincide byte a byte con el contrato', async (name) => {
     const doc = await docOf(name);
     const imagePaths = new Map(doc.questions.flatMap((q) => q.images).map((i) => [i.url, `quiz/${i.url.split('/').pop()}`]));
     expect(renderMarkdown(doc, { ...base, detailed: false, imagePaths })).toBe(golden(`${name}.md`));
@@ -30,6 +30,15 @@ describe('renderMarkdown, formato por defecto', () => {
   it('nunca marca [x] aunque haya opciones seleccionadas', async () => {
     const md = renderMarkdown(await docOf('edge-cases'), { ...base, detailed: false, imagePaths: new Map() });
     expect(md).not.toContain('[x]');
+  });
+
+  it('las opciones son una lista de tareas de Markdown (- [ ] / - [x])', async () => {
+    const doc = await docOf('edge-cases');
+    const plain = renderMarkdown(doc, { ...base, detailed: false, imagePaths: new Map() });
+    const detailed = renderMarkdown(doc, { ...base, detailed: true, imagePaths: new Map() });
+    expect(plain).toMatch(/^- \[ \] a\. /m);
+    expect(detailed).toMatch(/^- \[x\] [a-z]\. /m);
+    expect(`${plain}\n${detailed}`).not.toMatch(/^\[( |x)\] /m);
   });
 
   it('no inventa puntaje ni estado cuando la página no los trae', async () => {

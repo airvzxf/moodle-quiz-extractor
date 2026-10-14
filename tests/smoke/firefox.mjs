@@ -41,12 +41,23 @@ writeFileSync(
 
 const port = 9300 + Math.floor(Math.random() * 500);
 const firefox = spawn(executable, ['--headless', '--no-remote', '-remote-allow-system-access', '--profile', profile, `--remote-debugging-port=${port}`], {
-  stdio: 'ignore',
+  stdio: ['ignore', 'ignore', 'pipe'],
+});
+// En un runner frío Firefox puede tardar más de 20 s en abrir BiDi; se
+// espera hasta 60 s y, si falla, se muestra el final de su stderr.
+let stderr = '';
+let exited = false;
+firefox.stderr.on('data', (chunk) => {
+  stderr = (stderr + chunk).slice(-4000);
+});
+firefox.on('exit', () => {
+  exited = true;
 });
 
 let ws;
-for (let i = 0; i < 100 && !ws; i++) {
-  await sleep(200);
+const deadline = Date.now() + 60_000;
+while (!ws && !exited && Date.now() < deadline) {
+  await sleep(250);
   try {
     const socket = new WebSocket(`ws://127.0.0.1:${port}/session`);
     await new Promise((resolve, reject) => {
@@ -58,7 +69,10 @@ for (let i = 0; i < 100 && !ws; i++) {
     ws = undefined;
   }
 }
-if (!ws) throw new Error('No se pudo conectar con Firefox por WebDriver BiDi.');
+if (!ws) {
+  firefox.kill();
+  throw new Error(`No se pudo conectar con Firefox por WebDriver BiDi${exited ? ' (Firefox terminó)' : ''}.\n${stderr}`);
+}
 
 let nextId = 1;
 const pending = new Map();
