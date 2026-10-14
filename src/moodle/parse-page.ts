@@ -29,7 +29,9 @@ export function readNavigation(doc: Document): Navigation {
 
   const byNumber = new Map<number, NavEntry>();
   let allFree = true;
-  for (const a of Array.from(doc.querySelectorAll('a.qnbutton[data-quiz-page]'))) {
+  // Libre: <a class="qnbutton free">. Secuencial: Moodle pinta <span
+  // class="qnbutton sequential"> (verificado con Moodle 5.3, laboratorio #12).
+  for (const a of Array.from(doc.querySelectorAll('.qnbutton[data-quiz-page]'))) {
     const match = (a.textContent ?? '').match(/\d+/);
     const page = toInt(a.getAttribute('data-quiz-page'));
     if (!match || page === null) continue;
@@ -112,7 +114,8 @@ function parseQuestion(block: Element, page: number, pageUrl: string): Question 
   let instruction: string | null = null;
   if (legend) {
     const copy = legend.cloneNode(true) as Element;
-    copy.querySelectorAll('.sr-only').forEach((el) => el.remove());
+    // sr-only: Bootstrap 4 (Moodle ≤4.x); visually-hidden: Bootstrap 5 (Moodle 5.x).
+    copy.querySelectorAll('.sr-only, .visually-hidden').forEach((el) => el.remove());
     instruction = normalizeSpace(copy.textContent ?? '') || null;
   }
 

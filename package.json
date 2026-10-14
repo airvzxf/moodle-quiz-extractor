@@ -16,7 +16,9 @@
     "compile": "tsc --noEmit",
     "test": "vitest run",
     "smoke:chrome": "WXT_SMOKE=1 wxt build -b chrome && node tests/smoke/chrome.mjs",
-    "smoke:firefox": "WXT_SMOKE=1 wxt build -b firefox --mv3 && node tests/smoke/firefox.mjs"
+    "smoke:firefox": "WXT_SMOKE=1 wxt build -b firefox --mv3 && node tests/smoke/firefox.mjs",
+    "smoke:lab": "WXT_SMOKE=1 wxt build -b chrome && node tests/smoke/lab-chrome.mjs",
+    "lab:capture": "node tools/moodle-lab/capture.mjs"
   },
   "dependencies": {
     "fflate": "0.8.3"

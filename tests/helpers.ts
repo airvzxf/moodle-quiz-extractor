@@ -41,3 +41,15 @@ export function imageResponse(bytes: Uint8Array<ArrayBuffer>, type = 'image/png'
 }
 
 export const PNG_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
+
+/** Páginas capturadas del laboratorio Moodle 5.3 (tools/moodle-lab/capture.mjs). */
+export const LAB_URL = JSON.parse(
+  readFileSync(join(process.cwd(), 'tests', 'fixtures', 'lab', 'manifest.json'), 'utf8'),
+) as Record<string, string>;
+
+export function loadLabFixture(name: string): Document {
+  const url = LAB_URL[name];
+  if (!url) throw new Error(`Fixture del laboratorio desconocida: ${name}`);
+  return new JSDOM(readFileSync(join(process.cwd(), 'tests', 'fixtures', 'lab', `${name}.html`), 'utf8'), { url })
+    .window.document;
+}
