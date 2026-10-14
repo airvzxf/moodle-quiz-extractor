@@ -14,5 +14,39 @@ import type { AnswerEntry, LineError, ParsedAnswers } from '@/autofill/types';
  * `entries` y `errors` quedan en orden de línea.
  */
 export function parseAnswerList(text: string): ParsedAnswers {
-  throw new Error('not implemented');
+  const entries: AnswerEntry[] = [];
+  const errors: LineError[] = [];
+  const seen = new Set<number>();
+
+  text.split(/\r?\n/).forEach((rawLine, index) => {
+    const line = index + 1;
+    const trimmed = rawLine.trim();
+    if (trimmed === '' || trimmed.startsWith('#') || trimmed.startsWith('//')) return;
+
+    const match = trimmed.match(/^(\d+)\s*[.):-]?\s*(.*)$/);
+    const number = match?.[1] ? Number.parseInt(match[1], 10) : 0;
+    const tokens = (match?.[2] ?? '').split(/[\s,;]+/).filter((t) => t !== '');
+    const letters: string[] = [];
+    let valid = number >= 1 && tokens.length > 0;
+    for (const token of tokens) {
+      const m = token.match(/^([a-z])[.)]?$/i);
+      if (!m?.[1]) {
+        valid = false;
+        break;
+      }
+      const letter = m[1].toLowerCase();
+      if (!letters.includes(letter)) letters.push(letter);
+    }
+
+    if (!valid) {
+      errors.push({ line, text: trimmed, reason: 'format' });
+    } else if (seen.has(number)) {
+      errors.push({ line, text: trimmed, reason: 'duplicate' });
+    } else {
+      seen.add(number);
+      entries.push({ number, letters, line });
+    }
+  });
+
+  return { entries, errors };
 }
