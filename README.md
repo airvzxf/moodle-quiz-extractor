@@ -41,27 +41,34 @@ Una respuesta por línea: número, separador opcional y una o varias letras.
 
 ## Formato del Markdown
 
+Pensado para verse bien en GitHub, Obsidian o VS Code: imágenes visibles, opciones como
+casillas y los datos de cada pregunta plegados. Con *Modo detallado* se marcan con
+`- [x]` las opciones seleccionadas y se añaden datos técnicos.
+
 ```markdown
-# 02 – Sistemas operativos – DSOP | Unidad 1
+# Actividad 1. Cuestionario
 
-## Actividad 1. Cuestionario
-
-Metadata
-Desconocido: Actividad_1._Cuestionario
+**Curso:** 02 – Sistemas operativos – DSOP · **Unidad:** Unidad 1
 
 ---
 
 ### 2. Relaciona las siguientes columnas:
-[IMAGEN](./quiz/A2_Examen_U1.png)
-#### Respuestas
-Selecciona una opción:
-- [ ] a. 1A, 2C, 3D, 4B.
-- [ ] b. 1C, 2A, 3D, 4B.
 
-Metadata
-Tipo de respuesta: single_choice.
-Puntaje de 10.00
-Sin responder aún
+![Unir elementos segun corresponda la descripción](./quiz/A2_Examen_U1.png)
+
+Selecciona una opción:
+- [ ] a. 1A, 2C, 3D, 4B
+- [ ] b. 1C, 2A, 3D, 4B
+- [ ] c. 1D, 2B, 3A, 4C
+- [ ] d. 1B, 2A, 3C, 4D
+
+<details><summary>Datos</summary>
+
+- **Tipo:** opción única
+- Puntaje de 10.00
+- Sin responder aún
+
+</details>
 ```
 
 ## Permisos

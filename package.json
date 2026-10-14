@@ -26,6 +26,8 @@
   "devDependencies": {
     "@types/jsdom": "30.0.0",
     "jsdom": "30.1.2",
+    "micromark": "4.0.3",
+    "micromark-extension-gfm": "3.0.0",
     "playwright-core": "1.64.0",
     "typescript": "7.0.2",
     "vitest": "5.0.4",
