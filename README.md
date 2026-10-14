@@ -14,6 +14,11 @@ lista en texto plano. **Nunca envía el intento**: el envío final siempre lo ha
   - `quiz.md`: el cuestionario legible;
   - `quiz.json`: los mismos datos en formato estructurado;
   - `quiz/`: las imágenes del enunciado y de las opciones.
+- **Exportar la revisión**: en la revisión de un intento terminado (`review.php`) el mismo
+  botón descarga `<curso-unidad-titulo>-revision.zip` con lo que contestaste, si cada
+  pregunta y opción fue correcta (✅ ◐ ❌ ➖), la puntuación, el resumen del intento y,
+  cuando Moodle los muestra, la respuesta correcta y la retroalimentación. Si la revisión
+  está paginada, incluye todas las preguntas. En la revisión no hay autollenado.
 - **Modo detallado** (casilla): el Markdown marca con `- [x]` lo que ya está seleccionado y
   añade datos técnicos (origen, páginas, tipo Moodle, instrucción, imágenes, avisos).
 - **Autollenar**: pegas tus respuestas, pulsas *Revisar* para ver qué se aplicará y

@@ -131,6 +131,8 @@ describe('parseAttemptPage con casos límite', () => {
       letter: 'a',
       text: '',
       selected: false,
+      outcome: null,
+      feedback: null,
       inputId: 'q500:4_answer0',
       images: [{ url: `${ORIGIN}/pluginfile.php/1/question/answer/500/4/11/opcion.png`, alt: 'Opción con imagen' }],
     });

@@ -22,11 +22,12 @@ export interface ContentEnv {
  * Atiende una petición del popup. Cada petición vuelve a leer el DOM: no hay
  * estado entre llamadas.
  * - 'mqx:status'  → readStatus(doc, url)
- * - 'mqx:export'  → si el estado no es 'attempt': {ok:false, error: 'login'|'not-attempt'};
+ * - 'mqx:export'  → si el estado no es 'attempt' ni 'review': {ok:false, error: 'login'|'not-attempt'};
  *                   si no, collectQuiz + exportQuiz → {ok:true, fileName, zipBase64,
  *                   questions: nº de preguntas, warnings: los del documento exportado};
  *                   si algo lanza: {ok:false, error:'failed'}.
- * - 'mqx:preview' → parseAnswerList + buildFillPlan, report = null. No toca la página.
+ * - 'mqx:preview' → sólo en 'attempt' (en la revisión: error 'not-attempt').
+ *                   parseAnswerList + buildFillPlan, report = null. No toca la página.
  * - 'mqx:apply'   → igual que preview y además report = applyFillPlan(doc, plan).
  */
 export async function handleRequest(req: MqxRequest, env: ContentEnv): Promise<MqxReply> {
@@ -34,7 +35,9 @@ export async function handleRequest(req: MqxRequest, env: ContentEnv): Promise<M
   if (req.type === 'mqx:status') return status;
 
   if (req.type === 'mqx:export') {
-    if (status.kind !== 'attempt') return { ok: false, error: status.kind } satisfies ExportReply;
+    if (status.kind !== 'attempt' && status.kind !== 'review') {
+      return { ok: false, error: status.kind } satisfies ExportReply;
+    }
     try {
       const page = parseAttemptPage(env.doc, env.url);
       const doc = await collectQuiz(page, env.url, env.loadPage);
@@ -55,7 +58,9 @@ export async function handleRequest(req: MqxRequest, env: ContentEnv): Promise<M
     }
   }
 
-  if (status.kind !== 'attempt') return { ok: false, error: status.kind } satisfies FillReply;
+  if (status.kind !== 'attempt') {
+    return { ok: false, error: status.kind === 'login' ? 'login' : 'not-attempt' } satisfies FillReply;
+  }
   const parsed = parseAnswerList(req.answers);
   const plan = buildFillPlan(parsed.entries, parseAttemptPage(env.doc, env.url));
   const report = req.type === 'mqx:apply' ? applyFillPlan(env.doc, plan) : null;

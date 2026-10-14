@@ -5,17 +5,43 @@ import type {
   ParsedPage,
   Question,
   QuestionKind,
+  QuestionOutcome,
   QuizImage,
+  QuizPageKind,
+  ReviewRow,
 } from '@/domain/types';
 import { cleanUrl, normalizeSpace } from '@/shared/text';
 
 /** true si la ruta de `url` termina en /mod/quiz/attempt.php. */
 export function isAttemptUrl(url: string): boolean {
+  return quizPageKind(url) === 'attempt';
+}
+
+/** true si la ruta termina en /mod/quiz/attempt.php o /mod/quiz/review.php. */
+export function isQuizPageUrl(url: string): boolean {
+  return quizPageKind(url) !== null;
+}
+
+/** 'attempt' (attempt.php), 'review' (review.php) o null. */
+export function quizPageKind(url: string): QuizPageKind | null {
+  let path: string;
   try {
-    return /\/mod\/quiz\/attempt\.php$/.test(new URL(url).pathname);
+    path = new URL(url).pathname;
   } catch {
-    return false;
+    return null;
   }
+  if (/\/mod\/quiz\/attempt\.php$/.test(path)) return 'attempt';
+  if (/\/mod\/quiz\/review\.php$/.test(path)) return 'review';
+  return null;
+}
+
+/**
+ * Selector de las preguntas de la página. En el intento viven en
+ * form#responseform; en la revisión no hay ese formulario y van dentro de
+ * #region-main (verificado con Moodle 5.3, laboratorio #12).
+ */
+export function questionSelector(kind: QuizPageKind): string {
+  return kind === 'review' ? '#region-main div.que' : 'form#responseform div.que';
 }
 
 /**
@@ -52,9 +78,12 @@ export function readNavigation(doc: Document): Navigation {
 /**
  * Lee una página de intento ya cargada. `pageUrl` es la URL con la que se
  * obtuvo el documento: se usa para resolver imágenes relativas y para leer
- * `attempt` y `cmid`. Sólo se leen las preguntas dentro de #responseform.
+ * `attempt` y `cmid`. Sólo se leen las preguntas de `questionSelector`: en
+ * review.php además el resumen, el resultado de cada pregunta y opción, la
+ * respuesta correcta y la retroalimentación (lo que Moodle muestre).
  */
 export function parseAttemptPage(doc: Document, pageUrl: string): ParsedPage {
+  const kind = quizPageKind(pageUrl) ?? 'attempt';
   const navigation = readNavigation(doc);
   const crumbs = Array.from(doc.querySelectorAll('ol.breadcrumb li.breadcrumb-item'))
     .map((li) => normalizeSpace(li.textContent ?? ''))
@@ -84,12 +113,23 @@ export function parseAttemptPage(doc: Document, pageUrl: string): ParsedPage {
   }
 
   const questions: Question[] = [];
-  for (const block of Array.from(doc.querySelectorAll('form#responseform div.que'))) {
+  for (const block of Array.from(doc.querySelectorAll(questionSelector(kind)))) {
     const q = parseQuestion(block, navigation.currentPage, pageUrl);
     if (q) questions.push(q);
   }
 
+  const summary: ReviewRow[] = [];
+  if (kind === 'review') {
+    for (const tr of Array.from(doc.querySelectorAll('table.quizreviewsummary tr'))) {
+      const label = normalizeSpace(tr.querySelector('th')?.textContent ?? '');
+      const value = normalizeSpace(tr.querySelector('td')?.textContent ?? '');
+      if (label && value) summary.push({ label, value });
+    }
+  }
+
   return {
+    kind,
+    summary,
     course,
     unit,
     title,
@@ -141,6 +181,9 @@ function parseQuestion(block: Element, page: number, pageUrl: string): Question 
     instruction,
     state: textOrNull(block.querySelector('.info .state')),
     grade: textOrNull(block.querySelector('.info .grade')),
+    outcome: questionOutcome(block),
+    rightAnswer: textOrNull(block.querySelector('.outcome .rightanswer')),
+    generalFeedback: textOrNull(block.querySelector('.outcome .generalfeedback')),
     choices: inputs.map((input, index) => parseChoice(input, index, pageUrl)),
     images: qtext ? readImages(qtext, pageUrl) : [],
   };
@@ -167,9 +210,30 @@ function parseChoice(input: HTMLInputElement, index: number, pageUrl: string): C
     letter,
     text: normalizeSpace(copy.textContent ?? ''),
     selected: input.checked,
+    outcome: choiceOutcome(container),
+    feedback: textOrNull(container.querySelector('.specificfeedback')),
     inputId: input.id,
     images: readImages(label, pageUrl),
   };
+}
+
+/** Clase de resultado de `.que` en la revisión; en un intento no aparece. */
+function questionOutcome(block: Element): QuestionOutcome | null {
+  const c = block.classList;
+  if (c.contains('correct')) return 'correct';
+  if (c.contains('partiallycorrect')) return 'partial';
+  if (c.contains('incorrect')) return 'incorrect';
+  if (c.contains('notanswered')) return 'unanswered';
+  return null;
+}
+
+/** Moodle marca así sólo las opciones elegidas (p. ej. <div class="r0 correct">). */
+function choiceOutcome(container: Element): Choice['outcome'] {
+  const c = container.classList;
+  if (c.contains('correct')) return 'correct';
+  if (c.contains('partiallycorrect')) return 'partial';
+  if (c.contains('incorrect')) return 'incorrect';
+  return null;
 }
 
 function readImages(root: Element, pageUrl: string): QuizImage[] {
