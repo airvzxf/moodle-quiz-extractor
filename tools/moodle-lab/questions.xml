@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Banco de preguntas del laboratorio Moodle (issue #12). Contenido inventado.
+  seed.php sustituye {{png:R,G,B,ANCHO,ALTO}} por un PNG generado con GD.
+  El <name> de cada pregunta es la clave que usa seed.php.
+-->
+<quiz>
+  <question type="multichoice">
+    <name><text>so</text></name>
+    <questiontext format="html"><text><![CDATA[<p>¿Cuál de los siguientes es un sistema operativo?</p>]]></text></questiontext>
+    <generalfeedback format="html"><text><![CDATA[<p>Linux es un sistema operativo; los demás son protocolos o lenguajes.</p>]]></text></generalfeedback>
+    <defaultgrade>10</defaultgrade>
+    <single>true</single>
+    <shuffleanswers>false</shuffleanswers>
+    <answernumbering>abc</answernumbering>
+    <showstandardinstruction>1</showstandardinstruction>
+    <answer fraction="100" format="html"><text>Linux</text><feedback format="html"><text>Correcto.</text></feedback></answer>
+    <answer fraction="0" format="html"><text>HTTP</text><feedback format="html"><text>Es un protocolo.</text></feedback></answer>
+    <answer fraction="0" format="html"><text>HTML</text><feedback format="html"><text>Es un lenguaje de marcado.</text></feedback></answer>
+    <answer fraction="0" format="html"><text>TCP</text><feedback format="html"><text>Es un protocolo.</text></feedback></answer>
+  </question>
+
+  <question type="truefalse">
+    <name><text>kernel</text></name>
+    <questiontext format="html"><text><![CDATA[<p>El kernel es parte del sistema operativo.</p>]]></text></questiontext>
+    <defaultgrade>10</defaultgrade>
+    <showstandardinstruction>1</showstandardinstruction>
+    <answer fraction="100" format="moodle_auto_format"><text>true</text><feedback format="html"><text></text></feedback></answer>
+    <answer fraction="0" format="moodle_auto_format"><text>false</text><feedback format="html"><text></text></feedback></answer>
+  </question>
+
+  <question type="multichoice">
+    <name><text>ram</text></name>
+    <questiontext format="html"><text><![CDATA[<p>La memoria RAM es:</p>]]></text></questiontext>
+    <defaultgrade>10</defaultgrade>
+    <single>true</single>
+    <shuffleanswers>false</shuffleanswers>
+    <answernumbering>abc</answernumbering>
+    <showstandardinstruction>1</showstandardinstruction>
+    <answer fraction="100" format="html"><text>Volátil</text></answer>
+    <answer fraction="0" format="html"><text>Permanente</text></answer>
+    <answer fraction="0" format="html"><text>Óptica</text></answer>
+  </question>
+
+  <question type="multichoice">
+    <name><text>bin</text></name>
+    <questiontext format="html"><text><![CDATA[<p>¿Cuánto es 1010 en binario expresado en decimal?</p>]]></text></questiontext>
+    <defaultgrade>10</defaultgrade>
+    <single>true</single>
+    <shuffleanswers>false</shuffleanswers>
+    <answernumbering>abc</answernumbering>
+    <showstandardinstruction>1</showstandardinstruction>
+    <answer fraction="0" format="html"><text>8</text></answer>
+    <answer fraction="100" format="html"><text>10</text></answer>
+    <answer fraction="0" format="html"><text>12</text></answer>
+  </question>
+
+  <question type="multichoice">
+    <name><text>transporte</text></name>
+    <questiontext format="html"><text><![CDATA[<p>Elige los protocolos de la capa de transporte.</p>]]></text></questiontext>
+    <defaultgrade>10</defaultgrade>
+    <single>false</single>
+    <shuffleanswers>false</shuffleanswers>
+    <answernumbering>abc</answernumbering>
+    <showstandardinstruction>1</showstandardinstruction>
+    <answer fraction="50" format="html"><text>TCP</text></answer>
+    <answer fraction="-100" format="html"><text>HTTP</text></answer>
+    <answer fraction="50" format="html"><text>UDP</text></answer>
+    <answer fraction="-100" format="html"><text>FTP</text></answer>
+  </question>
+
+  <question type="multichoice">
+    <name><text>primos</text></name>
+    <questiontext format="html"><text><![CDATA[<p>Selecciona los números primos.</p>]]></text></questiontext>
+    <defaultgrade>10</defaultgrade>
+    <single>false</single>
+    <shuffleanswers>false</shuffleanswers>
+    <answernumbering>abc</answernumbering>
+    <showstandardinstruction>1</showstandardinstruction>
+    <answer fraction="50" format="html"><text>2</text></answer>
+    <answer fraction="-100" format="html"><text>4</text></answer>
+    <answer fraction="50" format="html"><text>7</text></answer>
+  </question>
+
+  <question type="truefalse">
+    <name><text>tierra</text></name>
+    <questiontext format="html"><text><![CDATA[<p>La Tierra es plana.</p>]]></text></questiontext>
+    <defaultgrade>10</defaultgrade>
+    <showstandardinstruction>1</showstandardinstruction>
+    <answer fraction="0" format="moodle_auto_format"><text>true</text><feedback format="html"><text></text></feedback></answer>
+    <answer fraction="100" format="moodle_auto_format"><text>false</text><feedback format="html"><text></text></feedback></answer>
+  </question>
+
+  <question type="multichoice">
+    <name><text>capital</text></name>
+    <questiontext format="html"><text><![CDATA[<p>¿Cuál es la capital de México?</p>]]></text></questiontext>
+    <defaultgrade>10</defaultgrade>
+    <single>true</single>
+    <shuffleanswers>false</shuffleanswers>
+    <answernumbering>abc</answernumbering>
+    <showstandardinstruction>1</showstandardinstruction>
+    <answer fraction="100" format="html"><text>Ciudad de México</text></answer>
+    <answer fraction="0" format="html"><text>Guadalajara</text></answer>
+    <answer fraction="0" format="html"><text>Monterrey</text></answer>
+  </question>
+
+  <!-- Imágenes servidas por pluginfile.php: requieren la sesión. -->
+  <question type="multichoice">
+    <name><text>diagrama</text></name>
+    <questiontext format="html">
+      <text><![CDATA[<p>Observa el diagrama:</p><p><img src="@@PLUGINFILE@@/diagrama%20red.png" alt="Diagrama de red" width="120" height="60"></p>]]></text>
+      <file name="diagrama red.png" path="/" encoding="base64">{{png:30,90,160,120,60}}</file>
+    </questiontext>
+    <defaultgrade>10</defaultgrade>
+    <single>true</single>
+    <shuffleanswers>false</shuffleanswers>
+    <answernumbering>abc</answernumbering>
+    <showstandardinstruction>1</showstandardinstruction>
+    <answer fraction="100" format="html"><text>Topología de estrella</text></answer>
+    <answer fraction="0" format="html"><text>Topología de anillo</text></answer>
+    <answer fraction="0" format="html"><text>Topología de bus</text></answer>
+  </question>
+
+  <question type="multichoice">
+    <name><text>colores</text></name>
+    <questiontext format="html"><text><![CDATA[<p>¿Qué imagen es verde?</p>]]></text></questiontext>
+    <defaultgrade>10</defaultgrade>
+    <single>true</single>
+    <shuffleanswers>false</shuffleanswers>
+    <answernumbering>abc</answernumbering>
+    <showstandardinstruction>1</showstandardinstruction>
+    <answer fraction="0" format="html">
+      <text><![CDATA[<img src="@@PLUGINFILE@@/rojo.png" alt="Opción roja" width="60" height="30">]]></text>
+      <file name="rojo.png" path="/" encoding="base64">{{png:200,40,40,60,30}}</file>
+    </answer>
+    <answer fraction="100" format="html">
+      <text><![CDATA[<img src="@@PLUGINFILE@@/verde.png" alt="Opción verde" width="60" height="30">]]></text>
+      <file name="verde.png" path="/" encoding="base64">{{png:40,160,60,60,30}}</file>
+    </answer>
+    <answer fraction="0" format="html"><text>Ninguna de las anteriores</text></answer>
+  </question>
+
+  <!-- Tipos que la extensión no autollena: se exportan con aviso. -->
+  <question type="matching">
+    <name><text>emparejamiento</text></name>
+    <questiontext format="html"><text><![CDATA[<p>Relaciona cada animal con su clase.</p>]]></text></questiontext>
+    <defaultgrade>10</defaultgrade>
+    <shuffleanswers>false</shuffleanswers>
+    <subquestion format="html"><text>Perro</text><answer><text>Mamífero</text></answer></subquestion>
+    <subquestion format="html"><text>Águila</text><answer><text>Ave</text></answer></subquestion>
+    <subquestion format="html"><text>Tiburón</text><answer><text>Pez</text></answer></subquestion>
+  </question>
+
+  <question type="shortanswer">
+    <name><text>respuesta-corta</text></name>
+    <questiontext format="html"><text><![CDATA[<p>Escribe el comando para listar archivos en Linux.</p>]]></text></questiontext>
+    <defaultgrade>10</defaultgrade>
+    <usecase>0</usecase>
+    <answer fraction="100" format="moodle_auto_format"><text>ls</text></answer>
+  </question>
+
+  <question type="numerical">
+    <name><text>numerica</text></name>
+    <questiontext format="html"><text><![CDATA[<p>¿Cuánto es 7 × 6?</p>]]></text></questiontext>
+    <defaultgrade>10</defaultgrade>
+    <answer fraction="100" format="moodle_auto_format"><text>42</text><tolerance>0</tolerance></answer>
+  </question>
+
+  <question type="essay">
+    <name><text>ensayo</text></name>
+    <questiontext format="html"><text><![CDATA[<p>Explica qué es un proceso en un sistema operativo.</p>]]></text></questiontext>
+    <defaultgrade>10</defaultgrade>
+    <responseformat>plain</responseformat>
+    <responserequired>1</responserequired>
+    <responsefieldlines>5</responsefieldlines>
+    <attachments>0</attachments>
+    <attachmentsrequired>0</attachmentsrequired>
+  </question>
+
+  <question type="gapselect">
+    <name><text>huecos</text></name>
+    <questiontext format="html"><text><![CDATA[<p>El [[1]] administra los recursos y el [[2]] los usa.</p>]]></text></questiontext>
+    <defaultgrade>10</defaultgrade>
+    <shuffleanswers>0</shuffleanswers>
+    <selectoption><text>sistema operativo</text><group>1</group></selectoption>
+    <selectoption><text>usuario</text><group>1</group></selectoption>
+  </question>
+
+  <question type="cloze">
+    <name><text>cloze</text></name>
+    <questiontext format="html"><text><![CDATA[<p>Linux es un {1:MULTICHOICE:=sistema operativo~lenguaje~protocolo} creado por {1:SHORTANSWER:=Linus Torvalds}.</p>]]></text></questiontext>
+  </question>
+</quiz>

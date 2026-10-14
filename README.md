@@ -87,6 +87,7 @@ pnpm build:firefox    # .output/firefox-mv3
 pnpm build:chrome     # .output/chrome-mv3
 pnpm smoke:chrome     # prueba de humo con Chromium y un Moodle falso local
 pnpm smoke:firefox    # prueba de humo con Firefox (WebDriver BiDi)
+pnpm smoke:lab        # Chromium contra el laboratorio Moodle (ver abajo)
 ```
 
 Cargar en Firefox: `about:debugging#/runtime/this-firefox` → *Cargar complemento
@@ -94,15 +95,37 @@ temporal…* → `.output/firefox-mv3/manifest.json`.
 Cargar en Chrome: `chrome://extensions` → *Modo de desarrollador* → *Cargar
 descomprimida* → `.output/chrome-mv3`.
 
-### Fixtures de prueba
+### Laboratorio Moodle
 
-`tests/fixtures/` guarda páginas reales **reducidas y sin datos personales**. Para añadir
-una nueva, guarda la página del intento como HTML en `resources/` (ignorada por git) y
-ejecuta:
+Un Moodle 5.3 real en tu máquina, con cuestionarios inventados que cubren todos los
+casos: una página, varias páginas con navegación libre y secuencial, imágenes, opción
+múltiple, tipos no soportados e intentos terminados para la revisión. Así no hace falta
+usar exámenes reales ni se filtran preguntas, respuestas ni sesiones.
+
+Requisitos: `podman`, unos 2 GB de disco y ~8 minutos la primera vez.
 
 ```bash
-node tools/make-fixture.mjs resources/pagina.html tests/fixtures/nombre.html
+tools/moodle-lab/lab.sh up        # descarga, instala y siembra → http://127.0.0.1:8765
+pnpm smoke:lab                    # la extensión real en Chromium contra el laboratorio
+pnpm lab:capture                  # vuelve a capturar tests/fixtures/lab/
+tools/moodle-lab/lab.sh seed      # recrea el curso y los intentos
+tools/moodle-lab/lab.sh stop      # lo detiene (conserva datos)
+tools/moodle-lab/lab.sh destroy   # lo borra todo
 ```
+
+Usuarios: `estudiante1` / `Estudiante-lab-1` y `admin` / `Admin-lab-1` (sólo locales;
+el pod escucha únicamente en `127.0.0.1`). Las preguntas están en
+`tools/moodle-lab/questions.xml` (Moodle XML); `seed.php` crea el curso, los
+cuestionarios y los intentos. Las versiones de Moodle y de las imágenes están fijadas en
+`lab.sh`. Los datos viven en `~/.cache/mqx-moodle-lab` (cámbialo con `MQX_LAB_DIR`).
+
+### Fixtures de prueba
+
+- `tests/fixtures/lab/`: páginas del laboratorio (`pnpm lab:capture`). Son la referencia
+  para casos nuevos.
+- `tests/fixtures/*.html`: páginas reales de la UnADM **reducidas y sin datos
+  personales**, y fixtures sintéticas. No se añaden más páginas de la UnADM: los casos
+  nuevos salen del laboratorio.
 
 ## Licencia
 
