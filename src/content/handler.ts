@@ -30,5 +30,34 @@ export interface ContentEnv {
  * - 'mqx:apply'   → igual que preview y además report = applyFillPlan(doc, plan).
  */
 export async function handleRequest(req: MqxRequest, env: ContentEnv): Promise<MqxReply> {
-  throw new Error('not implemented');
+  const status = readStatus(env.doc, env.url);
+  if (req.type === 'mqx:status') return status;
+
+  if (req.type === 'mqx:export') {
+    if (status.kind !== 'attempt') return { ok: false, error: status.kind } satisfies ExportReply;
+    try {
+      const page = parseAttemptPage(env.doc, env.url);
+      const doc = await collectQuiz(page, env.url, env.loadPage);
+      const result = await exportQuiz(doc, env.fetchImage, {
+        detailed: req.detailed,
+        generatorVersion: req.generatorVersion,
+        exportedAt: req.exportedAt,
+      });
+      return {
+        ok: true,
+        fileName: result.fileName,
+        zipBase64: toBase64(result.zip),
+        questions: result.document.questions.length,
+        warnings: result.document.warnings,
+      } satisfies ExportReply;
+    } catch {
+      return { ok: false, error: 'failed' } satisfies ExportReply;
+    }
+  }
+
+  if (status.kind !== 'attempt') return { ok: false, error: status.kind } satisfies FillReply;
+  const parsed = parseAnswerList(req.answers);
+  const plan = buildFillPlan(parsed.entries, parseAttemptPage(env.doc, env.url));
+  const report = req.type === 'mqx:apply' ? applyFillPlan(env.doc, plan) : null;
+  return { ok: true, parseErrors: parsed.errors, plan, report } satisfies FillReply;
 }
