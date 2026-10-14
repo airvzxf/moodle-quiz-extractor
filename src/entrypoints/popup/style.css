@@ -1,0 +1,23 @@
+:root {
+  color-scheme: light dark;
+  --gap: 0.6rem;
+  --muted: #666;
+  --warn: #9a5b00;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --muted: #aaa; --warn: #f0b45a; }
+}
+body { font: 14px/1.4 system-ui, sans-serif; margin: 0; padding: 0.8rem; width: 22rem; }
+h1 { font-size: 1rem; margin: 0 0 0.3rem; }
+h2 { font-size: 0.95rem; margin: 1rem 0 var(--gap); }
+section { display: flex; flex-direction: column; gap: var(--gap); }
+section[hidden] { display: none; }
+#status { color: var(--muted); margin: 0; }
+textarea { font: 13px/1.4 ui-monospace, monospace; width: 100%; box-sizing: border-box; }
+.row { display: flex; gap: var(--gap); }
+button { padding: 0.35rem 0.7rem; }
+ul { margin: 0; padding-left: 1.1rem; color: var(--warn); }
+ul:empty { display: none; }
+.check { display: flex; gap: 0.4rem; align-items: flex-start; }
+.note { color: var(--muted); font-size: 12px; margin: 0; }
+p:empty { display: none; }

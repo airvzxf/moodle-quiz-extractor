@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Moodle Quiz Extractor</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Moodle Quiz Extractor</h1>
+      <p id="status" role="status">Leyendo la pestaña…</p>
+    </header>
+
+    <section id="export" hidden>
+      <h2>Exportar</h2>
+      <label class="check">
+        <input type="checkbox" id="detailed" />
+        Modo detallado (marca lo seleccionado y añade datos técnicos)
+      </label>
+      <button type="button" id="export-btn">Descargar ZIP</button>
+      <p id="export-result" role="status"></p>
+      <ul id="export-warnings"></ul>
+    </section>
+
+    <section id="fill" hidden>
+      <h2>Autollenar</h2>
+      <label for="answers">Una respuesta por línea, por ejemplo <code>1. a</code> o <code>3. a,c</code></label>
+      <textarea id="answers" rows="8" spellcheck="false" placeholder="1. a&#10;2. c&#10;3. a,c"></textarea>
+      <div class="row">
+        <button type="button" id="preview-btn">Revisar</button>
+        <button type="button" id="apply-btn">Aplicar en esta página</button>
+      </div>
+      <p id="fill-result" role="status"></p>
+      <ul id="fill-messages"></ul>
+      <p class="note">La extensión nunca envía el intento. Revisa la página y termina el intento tú.</p>
+    </section>
+
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
