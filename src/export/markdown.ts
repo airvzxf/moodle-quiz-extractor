@@ -2,7 +2,7 @@ import type { Choice, Question, QuizDocument, QuizImage } from '@/domain/types';
 import { describeWarning } from '@/shared/messages';
 
 export interface MarkdownOptions {
-  /** Modo detallado: añade metadatos técnicos y marca con [x] lo seleccionado. */
+  /** Modo detallado: añade metadatos técnicos y marca con - [x] lo seleccionado. */
   detailed: boolean;
   generatorVersion: string;
   /** Fecha ISO 8601 que se escribe en el pie (y en el encabezado si es detallado). */
@@ -28,7 +28,7 @@ const SEPARATOR = '\n\n---\n\n';
  *   #### Respuestas
  *   Selecciona una opción:            (single_choice)
  *   Selecciona una o mas opción:      (multiple_choice)
- *   [ ] <letra>. <texto>.             (una por opción)
+ *   - [ ] <letra>. <texto>.           (una por opción; lista de tareas)
  *   (línea vacía)
  *   Metadata
  *   Tipo de respuesta: <kind>.
@@ -93,7 +93,7 @@ function renderChoice(c: Choice, opts: MarkdownOptions): string {
   const mark = opts.detailed && c.selected ? 'x' : ' ';
   const parts = [c.text.replace(/\.+$/, ''), ...c.images.map((i) => imageLink(i, opts))];
   const label = parts.filter((p) => p !== '').join(' ');
-  return label ? `[${mark}] ${c.letter}. ${label}.` : `[${mark}] ${c.letter}.`;
+  return label ? `- [${mark}] ${c.letter}. ${label}.` : `- [${mark}] ${c.letter}.`;
 }
 
 function imageLink(image: QuizImage, opts: MarkdownOptions): string {
