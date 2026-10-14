@@ -52,8 +52,8 @@ context.on('request', (r) => {
 const page = await context.newPage();
 const popup = await context.newPage();
 
-async function openPopup() {
-  await popup.goto(`chrome-extension://${extensionId}/popup.html?target=${encodeURIComponent('http://127.0.0.1/mod/quiz/attempt.php*')}`);
+async function openPopup(script = 'attempt.php') {
+  await popup.goto(`chrome-extension://${extensionId}/popup.html?target=${encodeURIComponent(`http://127.0.0.1/mod/quiz/${script}*`)}`);
   // Mientras lee la pestaña, el popup muestra «Leyendo la pestaña…».
   await popup.waitForFunction(() => !/^(Leyendo|\s*$)/.test(document.getElementById('status')?.textContent ?? ''));
   return popup.textContent('#status');
@@ -122,6 +122,18 @@ try {
   out = await exportZip();
   check(out.result.startsWith('Listo: 7 preguntas'), `no soportadas: exporta las 7 (${out.result})`);
   check(out.warnings.length === 6, `no soportadas: 6 avisos (${out.warnings.length})`);
+
+  // Revisión de un intento terminado: sólo exportar, sin autollenado.
+  const rev = seed.quizzes.revision;
+  await page.goto(`${origin}/mod/quiz/review.php?attempt=${rev.attempt}&cmid=${rev.cmid}`, { waitUntil: 'domcontentloaded' });
+  const revStatus = await openPopup('review.php');
+  check(revStatus === 'Revisión: Revisión completa · 6 preguntas', `revisión: el popup la reconoce (${revStatus})`);
+  check(await popup.isHidden('#fill'), 'revisión: no ofrece autollenado');
+  out = await exportZip();
+  check(out.result.startsWith('Listo: 6 preguntas en mqx-lab-unidad-2-revision-completa-revision.zip'), `revisión: exporta las 6 (${out.result})`);
+  check(out.json?.kind === 'review' && out.json.summary.length === 6, 'revisión: quiz.json trae el tipo y el resumen');
+  check(out.md.includes('**Resultado:** ✅ 2 correctas · ◐ 1 parcialmente correcta · ❌ 2 incorrectas · ➖ 1 sin contestar'),
+    'revisión: quiz.md trae el recuento del resultado');
 
   check(forbidden.length === 0, `nunca se envió el intento (${forbidden.join(', ')})`);
   console.log('SMOKE LAB CHROME OK');

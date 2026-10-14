@@ -25,7 +25,8 @@ const ZIP_MTIME = new Date(2000, 0, 1);
  * Nombre base de los archivos: curso, unidad y título unidos por espacio,
  * sin acentos (NFD sin marcas), en minúsculas, cada racha fuera de [a-z0-9]
  * cambiada por '-', sin '-' al inicio ni al final, cortado a 80 caracteres
- * (y vuelto a limpiar de '-' final). Vacío → "cuestionario".
+ * (y vuelto a limpiar de '-' final). Vacío → "cuestionario". En la revisión
+ * se añade "-revision" para no pisar la exportación del intento.
  */
 export function slugFor(doc: QuizDocument): string {
   const raw = [doc.course, doc.unit, doc.title].filter((p) => p !== null).join(' ');
@@ -37,7 +38,8 @@ export function slugFor(doc: QuizDocument): string {
     .replace(/^-+|-+$/g, '')
     .slice(0, 80)
     .replace(/-+$/g, '');
-  return slug || 'cuestionario';
+  const name = slug || 'cuestionario';
+  return doc.kind === 'review' ? `${name}-revision` : name;
 }
 
 /**

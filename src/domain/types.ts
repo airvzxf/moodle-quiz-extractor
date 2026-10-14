@@ -6,6 +6,18 @@
 /** Tipo de pregunta según los controles que contiene (no según la clase CSS). */
 export type QuestionKind = 'single_choice' | 'multiple_choice' | 'unsupported';
 
+/** Página de intento (attempt.php) o de revisión de un intento terminado (review.php). */
+export type QuizPageKind = 'attempt' | 'review';
+
+/** Resultado de una pregunta en la revisión (clase de `.que`); null fuera de la revisión. */
+export type QuestionOutcome = 'correct' | 'partial' | 'incorrect' | 'unanswered';
+
+/** Fila del resumen de la revisión (`table.quizreviewsummary`), tal como la muestra Moodle. */
+export interface ReviewRow {
+  label: string;
+  value: string;
+}
+
 /** Imagen referenciada por una pregunta u opción. */
 export interface QuizImage {
   /** URL absoluta, SIN query ni fragmento (nunca lleva sesskey ni tokens). */
@@ -23,6 +35,10 @@ export interface Choice {
   selected: boolean;
   /** `id` del <input> en la página (p. ej. "q13963:2_answer1"). */
   inputId: string;
+  /** Revisión: 'correct' | 'partial' | 'incorrect' si la opción elegida lo indica; si no, null. */
+  outcome: Exclude<QuestionOutcome, 'unanswered'> | null;
+  /** Revisión: retroalimentación de la opción (`.specificfeedback` dentro de ella), o null. */
+  feedback: string | null;
   images: QuizImage[];
 }
 
@@ -44,6 +60,12 @@ export interface Question {
   state: string | null;
   /** Texto de `.info .grade` (p. ej. "Puntaje de 10.00"), o null. */
   grade: string | null;
+  /** Revisión: resultado según la clase de `.que`; null en un intento. */
+  outcome: QuestionOutcome | null;
+  /** Revisión: texto de `.rightanswer` (p. ej. "La respuesta correcta es: Linux"), o null. */
+  rightAnswer: string | null;
+  /** Revisión: texto de `.generalfeedback`, o null. */
+  generalFeedback: string | null;
   /** Vacío cuando kind === 'unsupported'. */
   choices: Choice[];
   /** Imágenes del enunciado, en orden de aparición. */
@@ -69,6 +91,9 @@ export interface Navigation {
 
 /** Lo que se lee de UNA página de intento. */
 export interface ParsedPage {
+  kind: QuizPageKind;
+  /** Resumen de la revisión; vacío en un intento. */
+  summary: ReviewRow[];
   course: string | null;
   unit: string | null;
   title: string;
@@ -98,7 +123,11 @@ export interface ExportWarning {
 
 /** Documento canónico de un cuestionario (es lo que se guarda como JSON). */
 export interface QuizDocument {
-  schemaVersion: 1;
+  /** 2: añade kind, summary y los campos de revisión de preguntas y opciones. */
+  schemaVersion: 2;
+  kind: QuizPageKind;
+  /** Resumen de la revisión; vacío en un intento. */
+  summary: ReviewRow[];
   course: string | null;
   unit: string | null;
   title: string;
@@ -106,7 +135,7 @@ export interface QuizDocument {
   source: {
     /** p. ej. "https://moodle.example.test" */
     origin: string;
-    /** Siempre "/mod/quiz/attempt.php". */
+    /** "/mod/quiz/attempt.php" o "/mod/quiz/review.php". */
     path: string;
     attemptId: number | null;
     cmid: number | null;
@@ -133,4 +162,5 @@ export type PageStatus =
       onPage: number[];
       /** Total de preguntas numeradas según la navegación. */
       total: number;
-    };
+    }
+  | { kind: 'review'; title: string; total: number };

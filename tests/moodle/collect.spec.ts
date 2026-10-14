@@ -21,7 +21,9 @@ describe('collectQuiz', () => {
     const loadPage = vi.fn();
     const doc = await collectQuiz(start('dsop-02'), FIXTURE_URL['dsop-02'], loadPage);
     expect(loadPage).not.toHaveBeenCalled();
-    expect(doc.schemaVersion).toBe(1);
+    expect(doc.schemaVersion).toBe(2);
+    expect(doc.kind).toBe('attempt');
+    expect(doc.summary).toEqual([]);
     expect(doc.source).toEqual({
       origin: 'https://moodle.example.test',
       path: '/mod/quiz/attempt.php',

@@ -127,6 +127,34 @@ function renderFill(reply: FillReply, applying: boolean): void {
   setList(ui.fillMessages, messages);
 }
 
+async function exportQuiz(tabId: number): Promise<void> {
+  ui.exportBtn.disabled = true;
+  ui.exportResult.textContent = 'Exportando…';
+  setList(ui.exportWarnings, []);
+  try {
+    const reply = await send(tabId, {
+      type: 'mqx:export',
+      detailed: ui.detailed.checked,
+      generatorVersion: browser.runtime.getManifest().version,
+      exportedAt: new Date().toISOString(),
+    });
+    if (!reply.ok) {
+      ui.exportResult.textContent =
+        reply.error === 'login'
+          ? 'Tu sesión de Moodle caducó.'
+          : 'No se pudo exportar el cuestionario.';
+      return;
+    }
+    await download(reply.fileName, reply.zipBase64);
+    ui.exportResult.textContent = `Listo: ${reply.questions} preguntas en ${reply.fileName}.`;
+    setList(ui.exportWarnings, reply.warnings.map(describeWarning));
+  } catch {
+    ui.exportResult.textContent = 'No se pudo exportar el cuestionario.';
+  } finally {
+    ui.exportBtn.disabled = false;
+  }
+}
+
 async function main(): Promise<void> {
   const tab = await targetTab();
   const tabId = tab?.id;
@@ -138,7 +166,7 @@ async function main(): Promise<void> {
     await browser.scripting.executeScript({ target: { tabId }, files: ['/moodle.js'] });
   } catch {
     ui.status.textContent =
-      'Abre un intento de cuestionario de Moodle (…/mod/quiz/attempt.php) y vuelve a pulsar el icono.';
+      'Abre un intento (…/mod/quiz/attempt.php) o su revisión (…/mod/quiz/review.php) y vuelve a pulsar el icono.';
     return;
   }
 
@@ -149,7 +177,15 @@ async function main(): Promise<void> {
   }
   if (status.kind === 'not-attempt') {
     ui.status.textContent =
-      'Esta pestaña no es un intento de cuestionario de Moodle (…/mod/quiz/attempt.php).';
+      'Esta pestaña no es un intento de cuestionario de Moodle (…/mod/quiz/attempt.php) ni su revisión (…/mod/quiz/review.php).';
+    return;
+  }
+
+  ui.exportSection.hidden = false;
+  ui.exportBtn.addEventListener('click', () => void exportQuiz(tabId));
+  if (status.kind === 'review') {
+    // En la revisión no hay nada que llenar: sólo se exporta.
+    ui.status.textContent = `Revisión: ${status.title} · ${status.total} preguntas`;
     return;
   }
 
@@ -162,7 +198,6 @@ async function main(): Promise<void> {
       ? ' · navegación secuencial: sólo se exporta esta página'
       : '';
   ui.status.textContent = `${status.title} — ${paging} · ${status.onPage.length} de ${status.total} preguntas aquí${sequential}`;
-  ui.exportSection.hidden = false;
   ui.fillSection.hidden = false;
 
   const key = answersKey(tab);
@@ -170,34 +205,6 @@ async function main(): Promise<void> {
   if (typeof saved[key] === 'string') ui.answers.value = saved[key];
   ui.answers.addEventListener('input', () => {
     void browser.storage.session.set({ [key]: ui.answers.value });
-  });
-
-  ui.exportBtn.addEventListener('click', async () => {
-    ui.exportBtn.disabled = true;
-    ui.exportResult.textContent = 'Exportando…';
-    setList(ui.exportWarnings, []);
-    try {
-      const reply = await send(tabId, {
-        type: 'mqx:export',
-        detailed: ui.detailed.checked,
-        generatorVersion: browser.runtime.getManifest().version,
-        exportedAt: new Date().toISOString(),
-      });
-      if (!reply.ok) {
-        ui.exportResult.textContent =
-          reply.error === 'login'
-            ? 'Tu sesión de Moodle caducó.'
-            : 'No se pudo exportar el cuestionario.';
-        return;
-      }
-      await download(reply.fileName, reply.zipBase64);
-      ui.exportResult.textContent = `Listo: ${reply.questions} preguntas en ${reply.fileName}.`;
-      setList(ui.exportWarnings, reply.warnings.map(describeWarning));
-    } catch {
-      ui.exportResult.textContent = 'No se pudo exportar el cuestionario.';
-    } finally {
-      ui.exportBtn.disabled = false;
-    }
   });
 
   const fill = async (applying: boolean): Promise<void> => {
