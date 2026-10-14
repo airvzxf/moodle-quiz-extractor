@@ -68,6 +68,8 @@ jobs:
         with:
           name: extension-${{ github.sha }}
           path: .output/*.zip
+          # .output/ empieza por punto: sin esto la acción lo ignora.
+          include-hidden-files: true
           if-no-files-found: error
           retention-days: 14
 
