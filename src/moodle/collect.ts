@@ -6,7 +6,10 @@ export type LoadPage = (url: string) => Promise<Document>;
 
 /** URL de la página `page` del mismo intento: fija `page` y quita el fragmento. */
 export function pageUrl(currentUrl: string, page: number): string {
-  throw new Error('not implemented');
+  const url = new URL(currentUrl);
+  url.searchParams.set('page', String(page));
+  url.hash = '';
+  return url.toString();
 }
 
 /**
@@ -26,5 +29,58 @@ export async function collectQuiz(
   currentUrl: string,
   loadPage: LoadPage,
 ): Promise<QuizDocument> {
-  throw new Error('not implemented');
+  const { navigation } = current;
+  const warnings: ExportWarning[] = [];
+  const parsed: ParsedPage[] = [current];
+  const included = [navigation.currentPage];
+
+  if (navigation.pages.length > 1 && navigation.mode === 'sequential') {
+    warnings.push({ code: 'sequential-navigation', detail: String(navigation.currentPage) });
+  } else if (navigation.pages.length > 1) {
+    for (const page of navigation.pages) {
+      if (page === navigation.currentPage) continue;
+      const url = pageUrl(currentUrl, page);
+      try {
+        const doc = await loadPage(url);
+        const ok =
+          doc.querySelector('form#responseform') !== null &&
+          readNavigation(doc).currentPage === page;
+        if (!ok) throw new Error('unexpected page');
+        parsed.push(parseAttemptPage(doc, url));
+        included.push(page);
+      } catch {
+        warnings.push({ code: 'page-unavailable', detail: String(page) });
+      }
+    }
+  }
+
+  const byNumber = new Map<number, Question>();
+  for (const p of parsed) {
+    for (const q of p.questions) if (!byNumber.has(q.number)) byNumber.set(q.number, q);
+  }
+  const questions = [...byNumber.values()].sort((a, b) => a.number - b.number);
+  for (const q of questions) {
+    if (q.kind === 'unsupported') {
+      warnings.push({ code: 'unsupported-question', detail: String(q.number) });
+    }
+  }
+
+  const url = new URL(currentUrl);
+  return {
+    schemaVersion: 1,
+    course: current.course,
+    unit: current.unit,
+    title: current.title,
+    section: current.section,
+    source: {
+      origin: url.origin,
+      path: url.pathname,
+      attemptId: current.attemptId,
+      cmid: current.cmid,
+    },
+    navigation: navigation.mode,
+    pages: included.sort((a, b) => a - b),
+    questions,
+    warnings,
+  };
 }
