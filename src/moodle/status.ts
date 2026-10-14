@@ -9,5 +9,20 @@ import { isAttemptUrl, parseAttemptPage } from '@/moodle/parse-page';
  * - 'not-attempt' en cualquier otro caso.
  */
 export function readStatus(doc: Document, url: string): PageStatus {
-  throw new Error('not implemented');
+  if (doc.querySelector('form#login, input[name="password"]')) return { kind: 'login' };
+  if (!isAttemptUrl(url) || !doc.querySelector('form#responseform div.que')) {
+    return { kind: 'not-attempt' };
+  }
+  const page = parseAttemptPage(doc, url);
+  const { navigation } = page;
+  const onPage = page.questions.map((q) => q.number);
+  return {
+    kind: 'attempt',
+    title: page.title,
+    currentPage: navigation.currentPage,
+    pages: navigation.pages,
+    mode: navigation.mode,
+    onPage,
+    total: navigation.entries.length > 0 ? navigation.entries.length : onPage.length,
+  };
 }
