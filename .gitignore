@@ -1,0 +1,8 @@
+node_modules/
+.output/
+.output-smoke/
+.wxt/
+coverage/
+*.log
+# HTML crudo de Moodle con sesskey y datos personales: nunca se versiona.
+resources/
