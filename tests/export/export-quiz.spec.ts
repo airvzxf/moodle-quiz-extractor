@@ -33,7 +33,7 @@ describe('exportQuiz', () => {
     const files = unzipSync(result.zip);
     expect(Object.keys(files).sort()).toEqual([`${slug}/quiz.json`, `${slug}/quiz.md`, `${slug}/quiz/A2_Examen_U1.png`]);
     expect(files[`${slug}/quiz/A2_Examen_U1.png`]).toEqual(PNG_BYTES);
-    expect(strFromU8(files[`${slug}/quiz.md`]!)).toContain('[IMAGEN](./quiz/A2_Examen_U1.png)');
+    expect(strFromU8(files[`${slug}/quiz.md`]!)).toMatch(/!\[[^\]]*\]\(\.\/quiz\/A2_Examen_U1\.png\)/);
     expect(JSON.parse(strFromU8(files[`${slug}/quiz.json`]!))).toEqual(result.document);
     expect(strFromU8(files[`${slug}/quiz.json`]!).endsWith('}\n')).toBe(true);
   });

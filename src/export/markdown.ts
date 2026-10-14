@@ -13,46 +13,55 @@ export interface MarkdownOptions {
 
 const SEPARATOR = '\n\n---\n\n';
 
+const KIND_LABEL: Record<Question['kind'], string> = {
+  single_choice: 'opción única',
+  multiple_choice: 'opción múltiple',
+  unsupported: 'no soportado',
+};
+
 /**
- * Markdown legible del cuestionario. Formato por defecto (contrato heredado):
+ * Markdown del cuestionario pensado para verse bien al renderizarse
+ * (GitHub, Obsidian, VS Code). Formato (D25, issue #14):
  *
- *   # <curso> | <unidad>            ("# <curso>" sin unidad; "Cuestionario Moodle" sin curso)
- *   (línea vacía)
- *   ## <título>
- *   (línea vacía)
- *   Metadata
- *   Desconocido: <sección|unidad|título con espacios cambiados por '_'>
- *   ---  (separador "\n\n---\n\n" antes de cada pregunta y entre preguntas)
+ *   # <título>                         ("Cuestionario Moodle" si no hay)
+ *   **Curso:** … · **Unidad:** … · **Sección:** …   (sólo lo que exista; la
+ *                                       sección se omite si es igual al título)
+ *   <details> "Datos del cuestionario"   (sólo detallado: origen, intento,
+ *                                       cmid, navegación, páginas, total,
+ *                                       fecha y un "Aviso" por advertencia)
+ *   ---                                (antes de cada pregunta)
  *   ### <n>. <enunciado>
- *   [IMAGEN](<ruta>)                 (una línea por imagen del enunciado)
- *   #### Respuestas
- *   Selecciona una opción:            (single_choice)
- *   Selecciona una o mas opción:      (multiple_choice)
- *   - [ ] <letra>. <texto>.           (una por opción; lista de tareas)
- *   (línea vacía)
- *   Metadata
- *   Tipo de respuesta: <kind>.
- *   <puntaje>                         (si existe)
- *   <estado>                          (si existe)
+ *   ![alt](ruta)                       (una por imagen, en su propio párrafo)
+ *   Selecciona una opción: | Selecciona una o más opciones:
+ *   - [ ] <letra>. <texto> ![alt](ruta)   ("- [x]" si está marcada y es detallado)
+ *   <details><summary>Datos</summary>  (lista: tipo, puntaje y estado de
+ *                                       Moodle; en detallado también tipo
+ *                                       Moodle, página, instrucción e imágenes)
+ *   > Generado por moodle-quiz-extractor v<versión> — <fecha>
  *
- * El documento termina con "\n\n> Generado por moodle-quiz-extractor v<versión> — <fecha>\n".
- * Ver docs del plan (02-contract.md) para el modo detallado y los casos límite.
+ * El texto que viene de Moodle se escapa para que no se interprete como
+ * Markdown ni HTML. Cada dato va en su propia línea de lista o párrafo: nunca
+ * dos líneas seguidas que el renderizador junte en un párrafo.
  */
 export function renderMarkdown(doc: QuizDocument, opts: MarkdownOptions): string {
-  const course = doc.course ?? 'Cuestionario Moodle';
-  const h1 = doc.unit ? `# ${course} | ${doc.unit}` : `# ${course}`;
-  const key = (doc.section ?? doc.unit ?? doc.title).replaceAll(' ', '_');
+  const head = [`# ${escapeText(doc.title) || 'Cuestionario Moodle'}`];
 
-  const meta = ['Metadata', `Desconocido: ${key}`];
+  const context: string[] = [];
+  if (doc.course) context.push(`**Curso:** ${escapeText(doc.course)}`);
+  if (doc.unit) context.push(`**Unidad:** ${escapeText(doc.unit)}`);
+  if (doc.section && doc.section !== doc.title) context.push(`**Sección:** ${escapeText(doc.section)}`);
+  if (context.length > 0) head.push(context.join(' · '));
+
   if (opts.detailed) {
-    meta.push(`Origen: ${doc.source.origin}${doc.source.path}`);
-    if (doc.source.attemptId !== null) meta.push(`Intento: ${doc.source.attemptId}`);
-    if (doc.source.cmid !== null) meta.push(`Módulo (cmid): ${doc.source.cmid}`);
-    meta.push(`Navegación: ${doc.navigation === 'free' ? 'libre' : 'secuencial'}`);
-    meta.push(`Páginas exportadas: ${doc.pages.map((p) => p + 1).join(', ')}`);
-    meta.push(`Total de preguntas: ${doc.questions.length}`);
-    meta.push(`Exportado: ${opts.exportedAt}`);
-    for (const w of doc.warnings) meta.push(`Advertencia: ${describeWarning(w)}`);
+    const data = [keyValue('Origen', autolink(`${doc.source.origin}${doc.source.path}`))];
+    if (doc.source.attemptId !== null) data.push(keyValue('Intento', String(doc.source.attemptId)));
+    if (doc.source.cmid !== null) data.push(keyValue('Módulo (cmid)', String(doc.source.cmid)));
+    data.push(keyValue('Navegación', doc.navigation === 'free' ? 'libre' : 'secuencial'));
+    data.push(keyValue('Páginas exportadas', doc.pages.map((p) => p + 1).join(', ')));
+    data.push(keyValue('Total de preguntas', String(doc.questions.length)));
+    data.push(keyValue('Exportado', opts.exportedAt));
+    for (const w of doc.warnings) data.push(keyValue('Aviso', escapeText(describeWarning(w))));
+    head.push(details('Datos del cuestionario', data));
   }
 
   const body =
@@ -60,43 +69,63 @@ export function renderMarkdown(doc: QuizDocument, opts: MarkdownOptions): string
       ? doc.questions.map((q) => renderQuestion(q, opts)).join(SEPARATOR)
       : '_Sin preguntas._';
   const footer = `\n\n> Generado por moodle-quiz-extractor v${opts.generatorVersion} — ${opts.exportedAt}\n`;
-  return `${h1}\n\n## ${doc.title}\n\n${meta.join('\n')}${SEPARATOR}${body}${footer}`;
+  return `${head.join('\n\n')}${SEPARATOR}${body}${footer}`;
 }
 
 function renderQuestion(q: Question, opts: MarkdownOptions): string {
-  const lines = [`### ${q.number}. ${q.text}`];
-  for (const image of q.images) lines.push(imageLink(image, opts));
-  lines.push('#### Respuestas');
+  const blocks = [`### ${q.number}. ${escapeText(q.text)}`];
+  for (const image of q.images) blocks.push(imageMarkdown(image, opts));
   if (q.kind === 'unsupported') {
-    lines.push('_No se reconocen opciones para este tipo de pregunta._');
+    blocks.push('_No se reconocen opciones para este tipo de pregunta._');
   } else {
-    lines.push(q.kind === 'multiple_choice' ? 'Selecciona una o mas opción:' : 'Selecciona una opción:');
-    for (const c of q.choices) lines.push(renderChoice(c, opts));
+    const prompt = q.kind === 'multiple_choice' ? 'Selecciona una o más opciones:' : 'Selecciona una opción:';
+    blocks.push([prompt, ...q.choices.map((c) => renderChoice(c, opts))].join('\n'));
   }
 
-  const meta = ['Metadata', `Tipo de respuesta: ${q.kind}.`];
-  if (q.grade !== null) meta.push(q.grade);
-  if (q.state !== null) meta.push(q.state);
+  const data = [keyValue('Tipo', KIND_LABEL[q.kind])];
+  if (q.grade !== null) data.push(escapeText(q.grade));
+  if (q.state !== null) data.push(escapeText(q.state));
   if (opts.detailed) {
-    meta.push(`Tipo Moodle: ${q.moodleType}`);
-    meta.push(`Página: ${q.page + 1}`);
-    if (q.instruction !== null) meta.push(`Instrucción: ${q.instruction}`);
-    const images = [...q.images, ...q.choices.flatMap((c) => c.images)];
-    for (const image of images) {
-      meta.push(`Imagen: ${image.alt || '(sin texto alternativo)'} — ${image.url}`);
+    data.push(keyValue('Tipo Moodle', escapeText(q.moodleType)));
+    data.push(keyValue('Página', String(q.page + 1)));
+    if (q.instruction !== null) data.push(keyValue('Instrucción', escapeText(q.instruction)));
+    for (const image of [...q.images, ...q.choices.flatMap((c) => c.images)]) {
+      data.push(keyValue('Imagen', `${escapeText(image.alt || '(sin texto alternativo)')} — ${autolink(image.url)}`));
     }
   }
-  return `${lines.join('\n')}\n\n${meta.join('\n')}`;
+  blocks.push(details('Datos', data));
+  return blocks.join('\n\n');
 }
 
 function renderChoice(c: Choice, opts: MarkdownOptions): string {
   const mark = opts.detailed && c.selected ? 'x' : ' ';
-  const parts = [c.text.replace(/\.+$/, ''), ...c.images.map((i) => imageLink(i, opts))];
-  const label = parts.filter((p) => p !== '').join(' ');
-  return label ? `- [${mark}] ${c.letter}. ${label}.` : `- [${mark}] ${c.letter}.`;
+  const label = [escapeText(c.text), ...c.images.map((i) => imageMarkdown(i, opts))].filter((p) => p !== '').join(' ');
+  return label ? `- [${mark}] ${c.letter}. ${label}` : `- [${mark}] ${c.letter}.`;
 }
 
-function imageLink(image: QuizImage, opts: MarkdownOptions): string {
+/** Bloque plegable; las líneas en blanco permiten Markdown dentro del HTML. */
+function details(summary: string, items: string[]): string {
+  return `<details><summary>${summary}</summary>\n\n${items.map((i) => `- ${i}`).join('\n')}\n\n</details>`;
+}
+
+/** "**Clave:** valor". `value` ya debe venir escapado o ser Markdown propio. */
+function keyValue(key: string, value: string): string {
+  return `**${key}:** ${value}`;
+}
+
+/** Autoenlace CommonMark: la URL no necesita escaparse. */
+function autolink(url: string): string {
+  return `<${url.replace(/[\s<>]/g, encodeURIComponent)}>`;
+}
+
+function imageMarkdown(image: QuizImage, opts: MarkdownOptions): string {
   const path = opts.imagePaths.get(image.url);
-  return `[IMAGEN](${path ? `./${path}` : image.url})`;
+  const target = path ? `./${path}` : image.url;
+  const alt = image.alt.replace(/[\\[\]]/g, '\\$&');
+  return `![${alt}](${/[\s()<>]/.test(target) ? `<${target}>` : target})`;
+}
+
+/** Escapa lo que CommonMark/GFM interpretaría en texto de Moodle. */
+function escapeText(text: string): string {
+  return text.replace(/[\\`*_[\]<>~]/g, '\\$&');
 }
