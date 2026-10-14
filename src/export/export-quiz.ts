@@ -28,7 +28,16 @@ const ZIP_MTIME = new Date(2000, 0, 1);
  * (y vuelto a limpiar de '-' final). Vacío → "cuestionario".
  */
 export function slugFor(doc: QuizDocument): string {
-  throw new Error('not implemented');
+  const raw = [doc.course, doc.unit, doc.title].filter((p) => p !== null).join(' ');
+  const slug = raw
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80)
+    .replace(/-+$/g, '');
+  return slug || 'cuestionario';
 }
 
 /**
@@ -44,5 +53,17 @@ export async function exportQuiz(
   fetchImage: FetchImage,
   opts: ExportOptions,
 ): Promise<ExportResult> {
-  throw new Error('not implemented');
+  const { files, warnings } = await fetchAssets(planAssets(doc), doc.source.origin, fetchImage);
+  const document: QuizDocument = { ...doc, warnings: [...doc.warnings, ...warnings] };
+  const imagePaths = new Map([...files].map(([url, f]) => [url, f.path]));
+  const markdown = renderMarkdown(document, { ...opts, imagePaths });
+
+  const slug = slugFor(document);
+  const entries: Zippable = {
+    [`${slug}/quiz.md`]: strToU8(markdown),
+    [`${slug}/quiz.json`]: strToU8(`${JSON.stringify(document, null, 2)}\n`),
+  };
+  for (const file of files.values()) entries[`${slug}/${file.path}`] = file.bytes;
+
+  return { fileName: `${slug}.zip`, zip: zipSync(entries, { mtime: ZIP_MTIME }), document };
 }
