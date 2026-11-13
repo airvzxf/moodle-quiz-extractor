@@ -1,6 +1,8 @@
 // Prueba de humo en Firefox con la extensión real compilada (WXT_SMOKE=1),
 // manejada por WebDriver BiDi (sin dependencias extra). Usa un perfil temporal
-// con -remote-allow-system-access para poder leer el popup (página moz-extension).
+// con acceso de sistema para poder leer el popup (página moz-extension):
+// Firefox 159+ lo pide con MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1; las versiones
+// anteriores, con -remote-allow-system-access.
 // Uso: pnpm smoke:firefox   (variable opcional FIREFOX_PATH)
 import { spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
@@ -41,6 +43,7 @@ writeFileSync(
 
 const port = 9300 + Math.floor(Math.random() * 500);
 const firefox = spawn(executable, ['--headless', '--no-remote', '-remote-allow-system-access', '--profile', profile, `--remote-debugging-port=${port}`], {
+  env: { ...process.env, MOZ_REMOTE_ALLOW_SYSTEM_ACCESS: '1' },
   stdio: ['ignore', 'ignore', 'pipe'],
 });
 // En un runner frío Firefox puede tardar más de 20 s en abrir BiDi; se
