@@ -1,0 +1,79 @@
+name: Error
+description: Algo de la extensión no funciona como se espera.
+title: "[error] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        No pegues cookies, tokens de sesión ni datos personales de alumnos.
+        Si adjuntas HTML de Moodle, quita nombres y correos.
+  - type: input
+    id: version
+    attributes:
+      label: Versión de la extensión
+      description: Versión del manifiesto, o el commit si la compilaste tú.
+      placeholder: "0.1.0 (commit abc1234)"
+    validations:
+      required: true
+  - type: dropdown
+    id: browser
+    attributes:
+      label: Navegador
+      options:
+        - Firefox
+        - Chrome
+        - Otro (indícalo en el entorno)
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Entorno
+      description: Versión del navegador y de Moodle (si la sabes).
+      placeholder: "Firefox 159.0, Moodle 5.1"
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Función
+      options:
+        - Exportar (ZIP, quiz.md, quiz.json)
+        - Autollenado de respuestas
+        - Exportar la revisión (review.php)
+        - Popup
+        - Otra
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Pasos para reproducirlo
+      placeholder: |
+        1. Abrir un intento de cuestionario (attempt.php) con 2 páginas.
+        2. Abrir el popup y pulsar «Exportar».
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Qué esperabas
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Qué pasó
+      description: Incluye el mensaje del popup o de la consola, si lo hay.
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Confirmaciones
+      options:
+        - label: Busqué en los issues abiertos y no está duplicado.
+          required: true
+        - label: No incluí cookies, tokens ni datos personales.
+          required: true

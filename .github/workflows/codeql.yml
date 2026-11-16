@@ -1,0 +1,50 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Semanal (lunes, UTC) para detectar alertas nuevas aunque no haya cambios.
+    - cron: "23 7 * * 1"
+  workflow_dispatch:
+
+# Mínimo privilegio: security-events sólo para subir el SARIF a
+# Code scanning; el resto es de lectura.
+permissions:
+  contents: read
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# Acciones fijadas por SHA (con la versión en el comentario); Dependabot
+# las actualiza.
+jobs:
+  analyze:
+    name: CodeQL (javascript-typescript)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # JavaScript/TypeScript no necesita compilar (build-mode: none).
+      # Se omiten las páginas HTML de prueba: son capturas de Moodle, no código
+      # de la extensión.
+      - uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          languages: javascript-typescript
+          build-mode: none
+          queries: security-extended
+          config: |
+            paths-ignore:
+              - "tests/fixtures/**"
+      - uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          category: /language:javascript-typescript

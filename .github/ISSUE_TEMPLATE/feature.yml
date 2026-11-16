@@ -1,0 +1,30 @@
+name: Mejora
+description: Propón algo nuevo o un cambio en lo que ya existe.
+title: "[mejora] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problema
+      description: ¿Qué no se puede hacer hoy o qué cuesta trabajo?
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Propuesta
+      description: ¿Qué cambio quieres ver, desde el punto de vista de quien usa la extensión?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternativas consideradas
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Confirmaciones
+      options:
+        - label: Busqué en los issues abiertos y no está duplicado.
+          required: true
