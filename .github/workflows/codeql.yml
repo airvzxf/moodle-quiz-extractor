@@ -15,10 +15,6 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: codeql-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-
 # Acciones fijadas por SHA (con la versión en el comentario); Dependabot
 # las actualiza.
 jobs:
