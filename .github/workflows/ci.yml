@@ -10,12 +10,6 @@ on:
 permissions:
   contents: read
 
-# Un PR re-empujado cancela su ejecución anterior; en main no se cancela
-# para que un fallo quede visible mientras llega el arreglo.
-concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-
 # Acciones fijadas por SHA (con la versión en el comentario); Dependabot
 # las actualiza. Todas usan el runtime node24.
 jobs:
