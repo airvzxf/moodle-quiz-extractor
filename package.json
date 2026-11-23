@@ -25,10 +25,10 @@
   },
   "devDependencies": {
     "@types/jsdom": "30.0.0",
-    "jsdom": "31.0.0",
+    "jsdom": "31.0.1",
     "micromark": "4.0.3",
     "micromark-extension-gfm": "3.0.0",
-    "playwright-core": "1.65.0",
+    "playwright-core": "1.65.1",
     "typescript": "7.0.2",
     "vitest": "5.1.0",
     "wxt": "0.21.5"
